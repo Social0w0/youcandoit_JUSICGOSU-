@@ -403,7 +403,13 @@ def game_tick():
 
 
 # 스케줄러 시작 (5초마다 틱)
-scheduler.add_job(func=game_tick, trigger="interval", seconds=5)
+scheduler.add_job(
+    func=game_tick,
+    trigger="interval",
+    seconds=5,
+    max_instances=1,        # 중복 실행 방지
+    misfire_grace_time=10   # 밀린 틱 무시
+)
 scheduler.start()
 
 # -------------------------
