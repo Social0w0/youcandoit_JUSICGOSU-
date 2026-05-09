@@ -112,11 +112,8 @@
 
   /* ── LOGIN SCREEN ── */
   #view-login {
-    display: none; align-items: center; justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     min-height: 100vh; padding: 20px;
-  }
-  #view-login.active {
-    display: flex;
   }
   .login-box {
     width: 100%; max-width: 420px;
@@ -658,6 +655,7 @@ let userId = null, username = null;
 let currentStock = null, qty = 1;
 let priceChart = null;
 let lastEventCheck = 0;
+let eventInitialized = false;
 let prevPanel = 'home';
 let allStocks = [];
 let portfolio = { cash: 0, stocks: [] };
@@ -677,27 +675,14 @@ async function handleLogin() {
   err.textContent = '';
   if (!uname) { err.textContent = '닉네임을 입력하세요'; return; }
 
-  // 버튼 비활성화 + 로딩 표시
-  const btn = document.querySelector('.btn-primary');
-  btn.textContent = '⏳ 서버 연결 중... (최대 1분)';
-  btn.disabled = true;
-
   const endpoint = loginMode === 'new' ? '/create_user' : '/login';
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30초
-
     const res = await fetch(API + endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: uname }),
-      signal: controller.signal
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: uname })
     });
-    clearTimeout(timeout);
     const data = await res.json();
-  if (!res.ok) {
-      btn.textContent = '🚀 시작하기';  // 추가
-      btn.disabled = false;              // 추가
+    if (!res.ok) {
       if (res.status === 409 && loginMode === 'new') {
         err.textContent = '이미 존재하는 닉네임입니다. 기존 유저 탭을 이용하세요';
       } else {
@@ -713,14 +698,8 @@ async function handleLogin() {
     showMain();
     startPolling();
   } catch(e) {
-  btn.textContent = '🚀 시작하기';
-  btn.disabled = false;
-  if (e.name === 'AbortError') {
-    err.textContent = '서버 응답이 느립니다. 다시 한번 눌러주세요!';
-  } else {
     err.textContent = '서버 연결 실패. 잠시 후 다시 시도해주세요';
   }
-}
 }
 
 // ── POLLING ──
@@ -765,6 +744,17 @@ async function checkEvents() {
   try {
     const res = await fetch(API + '/events/recent');
     const events = await res.json();
+    if (!eventInitialized) {
+      // 첫 로드: 현재 있는 이벤트들의 최신 시간을 기준점으로 저장 (팝업 안 띄움)
+      if (events.length > 0) {
+        const latest = events[events.length - 1];
+        lastEventCheck = new Date(`1970/01/01 ${latest.time}`).getTime();
+      } else {
+        lastEventCheck = new Date().getTime() % 86400000;
+      }
+      eventInitialized = true;
+      return;
+    }
     const newEvents = events.filter(e => {
       const t = new Date(`1970/01/01 ${e.time}`).getTime();
       return t > lastEventCheck;
@@ -793,14 +783,19 @@ function renderPortfolio() {
     return;
   }
 
-  list.innerHTML = portfolio.stocks.map(h => `
+  list.innerHTML = portfolio.stocks.map(h => {
+    const profitSign = h.profit >= 0 ? '+' : '';
+    const profitClass = h.profit > 0 ? 'pos' : h.profit < 0 ? 'neg' : 'neu';
+    return `
     <div class="holding-item" onclick="openDetail(${h.stock_id})">
       <div class="holding-ticker">${h.ticker}</div>
-      <div class="holding-name">${h.stock}</div>
-      <div class="holding-qty">${h.quantity}주</div>
-      <div class="holding-value">${fmt(h.value)}원</div>
-    </div>
-  `).join('');
+      <div class="holding-name">${h.stock}<br><small style="color:var(--muted);font-size:11px">평균 ${fmt(h.avg_price)}원 · ${h.quantity}주</small></div>
+      <div style="text-align:right">
+        <div class="holding-value">${fmt(h.value)}원</div>
+        <div class="stock-change ${profitClass}" style="font-size:12px">${profitSign}${fmt(h.profit)}원 (${profitSign}${h.profit_pct.toFixed(1)}%)</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 const STOCK_COLORS = ['#7c6eff','#22c55e','#f59e0b','#06b6d4','#f43f5e'];

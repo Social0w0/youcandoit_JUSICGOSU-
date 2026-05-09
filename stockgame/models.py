@@ -21,14 +21,15 @@ class Holding(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)
     quantity = db.Column(db.Integer, default=0)
+    avg_price = db.Column(db.Float, default=0)  # 평균 매수가
 
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)
     title = db.Column(db.String(100))
     description = db.Column(db.String(200))
-    impact = db.Column(db.Float)       # e.g. +0.2, -0.3
-    duration = db.Column(db.Integer)   # ticks remaining
+    impact = db.Column(db.Float)
+    duration = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class PriceHistory(db.Model):

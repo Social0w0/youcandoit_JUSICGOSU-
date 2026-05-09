@@ -45,6 +45,16 @@ recent_events = []
 with app.app_context():
     db.create_all()
 
+    # DB 마이그레이션: avg_price 컬럼이 없으면 추가
+    from sqlalchemy import text, inspect
+    inspector = inspect(db.engine)
+    holding_cols = [c['name'] for c in inspector.get_columns('holding')]
+    if 'avg_price' not in holding_cols:
+        with db.engine.connect() as conn:
+            conn.execute(text('ALTER TABLE holding ADD COLUMN avg_price FLOAT DEFAULT 0'))
+            conn.commit()
+        print("[MIGRATION] avg_price 컬럼 추가 완료")
+
     if Stock.query.count() == 0:
         stocks = [
             Stock(name="삼성전자", ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
@@ -176,9 +186,12 @@ def buy():
     ).scalar_one_or_none()
 
     if holding:
+        # 평균매수가 재계산: (기존총액 + 새구매액) / 새총수량
+        total_cost_prev = holding.avg_price * holding.quantity
+        holding.avg_price = (total_cost_prev + cost) / (holding.quantity + qty)
         holding.quantity += qty
     else:
-        holding = Holding(user_id=user_id, stock_id=stock_id, quantity=qty)
+        holding = Holding(user_id=user_id, stock_id=stock_id, quantity=qty, avg_price=stock.price)
         db.session.add(holding)
 
     db.session.commit()
@@ -250,13 +263,19 @@ def portfolio(user_id):
         stock = db.session.get(Stock, h.stock_id)
         value = stock.price * h.quantity
         total += value
+        avg_price = h.avg_price if h.avg_price else stock.price
+        profit = (stock.price - avg_price) * h.quantity
+        profit_pct = ((stock.price - avg_price) / avg_price * 100) if avg_price else 0
         result.append({
             "stock_id": stock.id,
             "stock": stock.name,
             "ticker": stock.ticker,
             "quantity": h.quantity,
             "price": round(stock.price, 2),
-            "value": round(value, 2)
+            "avg_price": round(avg_price, 2),
+            "value": round(value, 2),
+            "profit": round(profit, 2),
+            "profit_pct": round(profit_pct, 2)
         })
 
     return jsonify({
@@ -387,7 +406,7 @@ def trigger_event():
             "description": desc,
             "impact": impact,
             "type": "positive" if is_positive else "negative",
-            "time": datetime.now().strftime("%H:%M:%S")
+            "time": datetime.utcnow().strftime("%H:%M:%S")
         }
         recent_events.append(event_data)
         if len(recent_events) > 50:
@@ -403,13 +422,7 @@ def game_tick():
 
 
 # 스케줄러 시작 (5초마다 틱)
-scheduler.add_job(
-    func=game_tick,
-    trigger="interval",
-    seconds=5,
-    max_instances=1,        # 중복 실행 방지
-    misfire_grace_time=10   # 밀린 틱 무시
-)
+scheduler.add_job(func=game_tick, trigger="interval", seconds=5)
 scheduler.start()
 
 # -------------------------
