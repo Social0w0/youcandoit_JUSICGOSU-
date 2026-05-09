@@ -111,10 +111,13 @@
   }
 
   /* ── LOGIN SCREEN ── */
-  #view-login {
-    display: flex; align-items: center; justify-content: center;
+#view-login {
+    display: none; align-items: center; justify-content: center;
     min-height: 100vh; padding: 20px;
-  }
+}
+#view-login.active {
+    display: flex;
+}
   .login-box {
     width: 100%; max-width: 420px;
     background: var(--bg2);

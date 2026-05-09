@@ -57,11 +57,12 @@ with app.app_context():
 
     if Stock.query.count() == 0:
         stocks = [
-            Stock(name="삼성전자", ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
+            Stock(name="오성전자", ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
             Stock(name="테슬라", ticker="TSLA", price=2000, description="전기차 및 에너지 혁신 기업"),
             Stock(name="애플", ticker="AAPL", price=1500, description="아이폰·맥 등 프리미엄 IT 기기 기업"),
             Stock(name="카카오", ticker="035720", price=800, description="국내 최대 모바일 플랫폼 기업"),
             Stock(name="네이버", ticker="035420", price=1200, description="검색·커머스·핀테크 종합 플랫폼"),
+            Stock(name="가천대", ticker="035420", price=1200, description="주식도둑의 본거지"),
         ]
         db.session.add_all(stocks)
         db.session.commit()
