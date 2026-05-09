@@ -681,12 +681,20 @@ async function handleLogin() {
 
   const endpoint = loginMode === 'new' ? '/create_user' : '/login';
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30초
+
     const res = await fetch(API + endpoint, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: uname })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: uname }),
+      signal: controller.signal
     });
+    clearTimeout(timeout);
     const data = await res.json();
-    if (!res.ok) {
+  if (!res.ok) {
+      btn.textContent = '🚀 시작하기';  // 추가
+      btn.disabled = false;              // 추가
       if (res.status === 409 && loginMode === 'new') {
         err.textContent = '이미 존재하는 닉네임입니다. 기존 유저 탭을 이용하세요';
       } else {
@@ -702,8 +710,14 @@ async function handleLogin() {
     showMain();
     startPolling();
   } catch(e) {
+  btn.textContent = '🚀 시작하기';
+  btn.disabled = false;
+  if (e.name === 'AbortError') {
+    err.textContent = '서버 응답이 느립니다. 다시 한번 눌러주세요!';
+  } else {
     err.textContent = '서버 연결 실패. 잠시 후 다시 시도해주세요';
   }
+}
 }
 
 // ── POLLING ──
