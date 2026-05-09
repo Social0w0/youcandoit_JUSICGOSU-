@@ -674,6 +674,11 @@ async function handleLogin() {
   err.textContent = '';
   if (!uname) { err.textContent = '닉네임을 입력하세요'; return; }
 
+  // 버튼 비활성화 + 로딩 표시
+  const btn = document.querySelector('.btn-primary');
+  btn.textContent = '⏳ 서버 연결 중... (최대 1분)';
+  btn.disabled = true;
+
   const endpoint = loginMode === 'new' ? '/create_user' : '/login';
   try {
     const res = await fetch(API + endpoint, {
