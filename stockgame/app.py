@@ -22,6 +22,10 @@ if db_url.startswith("postgres://"):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,   # 쿼리 전에 연결 살아있는지 확인
+    'pool_recycle': 300,     # 5분마다 연결 재활용
+}
 db.init_app(app)
 
 scheduler = BackgroundScheduler()

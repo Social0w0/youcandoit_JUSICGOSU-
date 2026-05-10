@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>너도할수있다주식고수!!!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&family=Noto+Sans+KR:wght@400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --bg4: #22222f;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #f0f0f8;
+    --muted: #8888aa;
+    --accent: #7c6eff;
+    --accent2: #a855f7;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --cyan: #06b6d4;
+    --font-head: 'Gmarket Sans', sans-serif;
+    --font-body: 'Noto Sans KR', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,110,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,110,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── VIEWS ── */
+  .view { display: none; position: relative; z-index: 1; }
+  .view.active { display: block; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,10,15,0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 20px; height: 56px; gap: 12px;
+  }
+  .topbar-logo {
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .topbar-logo span { color: var(--text); }
+  .topbar-spacer { flex: 1; }
+  .topbar-user {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .topbar-user:hover { border-color: var(--border2); }
+  .topbar-user .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+  .nav-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer; font-size: 13px;
+    font-family: var(--font-body);
+    transition: all 0.2s;
+  }
+  .nav-btn:hover, .nav-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(124,110,255,0.08);
+  }
+
+  /* ── LOGIN SCREEN ── */
+#view-login {
+    display: none; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 20px;
+}
+#view-login.active {
+    display: flex;
+}
+  .login-box {
+    width: 100%; max-width: 420px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    text-align: center;
+  }
+  .login-logo {
+    font-family: var(--font-head);
+    font-size: 28px; font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .login-sub {
+    font-size: 13px; color: var(--muted);
+    margin-bottom: 40px;
+  }
+  .login-input-wrap { position: relative; margin-bottom: 16px; }
+  .login-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-input:focus { border-color: var(--accent); }
+  .login-input::placeholder { color: var(--muted); }
+  .login-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .login-tab {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--muted); font-size: 13px;
+    padding: 8px; cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.2s;
+  }
+  .login-tab.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(124,110,255,0.1);
+  }
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    border: none; border-radius: var(--radius-sm);
+    color: #fff; font-family: var(--font-body); font-size: 15px; font-weight: 700;
+    padding: 13px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .login-err { color: var(--red); font-size: 13px; margin-top: 12px; min-height: 20px; }
+
+  /* ── MAIN LAYOUT ── */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+
+  /* ── SECTION HEADER ── */
+  .sec-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .sec-title {
+    font-family: var(--font-head);
+    font-size: 15px; font-weight: 700;
+    color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sec-title::before {
+    content: '';
+    display: inline-block;
+    width: 4px; height: 16px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* ── ASSET CARD ── */
+  .asset-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    position: relative; overflow: hidden;
+  }
+  .asset-card::after {
+    content: '';
+    position: absolute; top: -40px; right: -40px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(124,110,255,0.15), transparent 70%);
+    pointer-events: none;
+  }
+  .asset-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .asset-value {
+    font-family: var(--font-mono);
+    font-size: 32px; font-weight: 700;
+    color: var(--text);
+    letter-spacing: -1px;
+  }
+  .asset-value span { font-size: 16px; color: var(--muted); }
+  .asset-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-top: 20px;
+  }
+  .asset-mini {
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+  }
+  .asset-mini-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .asset-mini-value {
+    font-family: var(--font-mono);
+    font-size: 17px; font-weight: 700;
+  }
+
+  /* ── HOLDINGS ── */
+  .holding-list { display: flex; flex-direction: column; gap: 8px; }
+  .holding-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: border-color 0.2s;
+  }
+  .holding-item:hover { border-color: var(--border2); }
+  .holding-ticker {
+    font-family: var(--font-mono);
+    font-size: 11px; font-weight: 700;
+    color: var(--accent);
+    background: rgba(124,110,255,0.12);
+    padding: 3px 7px; border-radius: 4px;
+    min-width: 60px; text-align: center;
+  }
+  .holding-name { flex: 1; font-size: 14px; font-weight: 500; }
+  .holding-qty { font-size: 12px; color: var(--muted); }
+  .holding-value { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
+
+  /* ── STOCK LIST ── */
+  .stock-grid { display: flex; flex-direction: column; gap: 8px; }
+  .stock-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .stock-card:hover {
+    border-color: var(--accent);
+    background: var(--bg3);
+  }
+  .stock-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .stock-info { flex: 1; min-width: 0; }
+  .stock-name { font-weight: 700; font-size: 15px; }
+  .stock-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stock-right { text-align: right; }
+  .stock-price {
+    font-family: var(--font-mono);
+    font-size: 18px; font-weight: 700;
+  }
+  .stock-change {
+    font-size: 13px; font-weight: 700; margin-top: 2px;
+    font-family: var(--font-mono);
+  }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .neu { color: var(--muted); }
+
+  .event-badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 4px;
+    font-weight: 700; white-space: nowrap;
+  }
+  .event-pos { background: rgba(34,197,94,0.15); color: var(--green); }
+  .event-neg { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  /* ── RANKING ── */
+  .rank-list { display: flex; flex-direction: column; gap: 8px; }
+  .rank-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .rank-num {
+    font-family: var(--font-mono);
+    font-size: 20px; font-weight: 700;
+    min-width: 32px; text-align: center;
+  }
+  .rank-num.gold { color: #f59e0b; }
+  .rank-num.silver { color: #94a3b8; }
+  .rank-num.bronze { color: #b87f52; }
+  .rank-name { flex: 1; font-weight: 500; }
+  .rank-total {
+    font-family: var(--font-mono);
+    font-size: 14px; font-weight: 700;
+    color: var(--cyan);
+  }
+  .rank-me { border-color: var(--accent) !important; }
+
+  /* ── DETAIL VIEW ── */
+  .detail-wrap {
+    max-width: 900px; margin: 0 auto;
+    padding: 24px 20px;
+  }
+  .detail-header {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 24px;
+  }
+  .back-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text); font-size: 20px;
+    width: 40px; height: 40px;
+    border-radius: var(--radius-sm);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.2s; flex-shrink: 0;
+  }
+  .back-btn:hover { border-color: var(--border2); }
+  .detail-stock-name { font-family: var(--font-head); font-size: 26px; font-weight: 700; }
+  .detail-stock-price {
+    font-family: var(--font-mono);
+    font-size: 36px; font-weight: 700;
+    margin: 8px 0 4px;
+  }
+  .chart-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    height: 280px; position: relative;
+  }
+  .trade-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .trade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .trade-info {
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px;
+  }
+  .trade-info-label { color: var(--muted); }
+  .trade-info-value { font-family: var(--font-mono); font-weight: 700; }
+  .qty-wrap {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    margin: 20px 0 16px;
+  }
+  .qty-btn {
+    background: var(--bg4);
+    border: none; color: var(--text);
+    width: 36px; height: 36px; border-radius: 6px;
+    font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .qty-btn:hover { background: var(--border2); }
+  .qty-display {
+    flex: 1; text-align: center;
+    font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+  }
+  .qty-presets {
+    display: flex; gap: 8px; margin-bottom: 16px;
+  }
+  .qty-preset {
+    flex: 1;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--muted); font-size: 12px;
+    border-radius: 6px; padding: 6px; cursor: pointer;
+    font-family: var(--font-body);
+    transition: all 0.2s;
+  }
+  .qty-preset:hover { border-color: var(--accent); color: var(--accent); }
+  .trade-cost {
+    text-align: center; margin-bottom: 16px;
+    font-size: 13px; color: var(--muted);
+  }
+  .trade-cost strong { font-family: var(--font-mono); color: var(--text); font-size: 18px; }
+  .trade-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .btn-buy {
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green); font-family: var(--font-body);
+    font-size: 16px; font-weight: 700;
+    padding: 14px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-buy:hover { background: rgba(34,197,94,0.25); }
+  .btn-sell {
+    background: rgba(239,68,68,0.15);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: var(--red); font-family: var(--font-body);
+    font-size: 16px; font-weight: 700;
+    padding: 14px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-sell:hover { background: rgba(239,68,68,0.25); }
+
+  /* ── EVENT POPUP ── */
+  #event-feed {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 999; display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none; max-width: 480px; width: calc(100% - 40px);
+  }
+  .event-toast {
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    display: flex; align-items: flex-start; gap: 12px;
+    animation: toastIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    border: 1px solid;
+  }
+  .event-toast.pos {
+    background: rgba(10,30,20,0.95);
+    border-color: rgba(34,197,94,0.4);
+    color: #fff;
+  }
+  .event-toast.neg {
+    background: rgba(30,10,10,0.95);
+    border-color: rgba(239,68,68,0.4);
+    color: #fff;
+  }
+  .toast-icon { font-size: 20px; flex-shrink: 0; }
+  .toast-body { flex: 1; }
+  .toast-stock { font-size: 11px; font-family: var(--font-mono); font-weight: 700; opacity: 0.7; }
+  .toast-title { font-size: 14px; font-weight: 700; margin: 2px 0; }
+  .toast-desc { font-size: 12px; opacity: 0.7; line-height: 1.4; }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+  }
+
+  /* ── TOAST MSG ── */
+  #toast-msg {
+    position: fixed; top: 70px; right: 20px; z-index: 1000;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 12px 18px; font-size: 14px;
+    animation: toastIn 0.3s both;
+    max-width: 300px;
+  }
+  #toast-msg.success { border-color: rgba(34,197,94,0.5); color: var(--green); }
+  #toast-msg.error { border-color: rgba(239,68,68,0.5); color: var(--red); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 14px; }
+
+  /* ── NEWS FEED ── */
+  .news-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .news-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+    animation: toastIn 0.3s ease both;
+  }
+  .news-item.pos { border-left: 3px solid var(--green); }
+  .news-item.neg { border-left: 3px solid var(--red); }
+  .news-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .news-body { flex: 1; min-width: 0; }
+  .news-meta {
+    font-size: 11px; color: var(--muted);
+    font-family: var(--font-mono);
+    margin-bottom: 3px;
+  }
+  .news-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .news-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+  @media (max-width: 768px) {
+    .main-layout { grid-template-columns: 1fr; }
+    .trade-grid { grid-template-columns: 1fr 1fr; }
+    .asset-value { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="view-login" class="view active">
+  <div class="login-box">
+    <div class="login-logo">📈 주식고수!!!</div>
+    <div class="login-sub">너도할수있다 — 10,000원으로 시작하는 모의투자</div>
+    <div class="login-tabs">
+      <button class="login-tab active" id="tab-new" onclick="switchTab('new')">신규 참가</button>
+      <button class="login-tab" id="tab-login" onclick="switchTab('login')">기존 유저</button>
+    </div>
+    <div class="login-input-wrap">
+      <input class="login-input" id="username-input" type="text" placeholder="닉네임 입력 (최대 20자)" maxlength="20">
+    </div>
+    <button class="btn-primary" onclick="handleLogin()">🚀 시작하기</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- ── MAIN ── -->
+<div id="view-main" class="view">
+  <div class="topbar">
+    <div class="topbar-logo" onclick="showMain()">📈 <span>주식고수!!!</span></div>
+    <div class="topbar-spacer"></div>
+    <button class="nav-btn active" id="nav-home" onclick="showMain()">홈</button>
+    <button class="nav-btn" id="nav-stocks" onclick="showStocks()">종목</button>
+    <div class="topbar-user" onclick="showMain()">
+      <div class="dot"></div>
+      <span id="topbar-username">—</span>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div id="panel-home">
+    <div class="main-layout">
+      <div>
+        <!-- ASSET CARD -->
+        <div class="asset-card">
+          <div class="asset-label">총 자산</div>
+          <div class="asset-value" id="total-asset">—<span>원</span></div>
+          <div class="asset-grid">
+            <div class="asset-mini">
+              <div class="asset-mini-label">보유 현금</div>
+              <div class="asset-mini-value" id="cash-display">—</div>
+            </div>
+            <div class="asset-mini">
+              <div class="asset-mini-label">주식 평가액</div>
+              <div class="asset-mini-value" id="stock-value">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HOLDINGS -->
+        <div class="sec-head">
+          <div class="sec-title">보유 종목</div>
+        </div>
+        <div id="holdings-list" class="holding-list">
+          <div class="empty-state">보유 종목이 없습니다</div>
+        </div>
+      </div>
+
+      <!-- RANKING SIDEBAR -->
+      <div>
+        <div class="sec-head">
+          <div class="sec-title">전체 랭킹</div>
+        </div>
+        <div id="ranking-list" class="rank-list">
+          <div class="empty-state">로딩 중...</div>
+        </div>
+
+        <!-- NEWS FEED -->
+        <div class="sec-head" style="margin-top: 24px;">
+          <div class="sec-title">📰 뉴스 속보</div>
+        </div>
+        <div id="news-list" class="news-list">
+          <div class="empty-state">뉴스를 기다리는 중...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STOCKS LIST -->
+  <div id="panel-stocks" style="display:none; max-width:900px; margin:0 auto; padding:24px 20px;">
+    <div class="sec-head">
+      <div class="sec-title">전체 종목</div>
+    </div>
+    <div id="stock-grid" class="stock-grid">
+      <div class="empty-state">로딩 중...</div>
+    </div>
+  </div>
+
+  <!-- STOCK DETAIL -->
+  <div id="panel-detail" style="display:none;">
+    <div class="detail-wrap">
+      <div class="detail-header">
+        <button class="back-btn" onclick="backFromDetail()">←</button>
+        <div>
+          <div style="font-size:12px; color:var(--muted); font-family:var(--font-mono)" id="detail-ticker">—</div>
+          <div class="detail-stock-name" id="detail-name">—</div>
+        </div>
+        <div style="margin-left:auto; text-align:right;">
+          <div class="detail-stock-price" id="detail-price">—</div>
+          <div id="detail-change" class="stock-change">—</div>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="price-chart"></canvas>
+      </div>
+
+      <!-- TRADE PANEL -->
+      <div class="trade-panel">
+        <div class="trade-grid" style="margin-bottom:16px;">
+          <div class="trade-info">
+            <span class="trade-info-label">현금</span>
+            <span class="trade-info-value" id="trade-cash">—</span>
+          </div>
+          <div class="trade-info">
+            <span class="trade-info-label">보유 수량</span>
+            <span class="trade-info-value" id="trade-holding">0주</span>
+          </div>
+        </div>
+
+        <div class="qty-wrap">
+          <button class="qty-btn" onclick="changeQty(-1)">−</button>
+          <div class="qty-display" id="qty-display">1</div>
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+        </div>
+
+        <div class="qty-presets">
+          <button class="qty-preset" onclick="setQtyPct(0.1)">10%</button>
+          <button class="qty-preset" onclick="setQtyPct(0.25)">25%</button>
+          <button class="qty-preset" onclick="setQtyPct(0.5)">50%</button>
+          <button class="qty-preset" onclick="setQtyAll()">최대</button>
+        </div>
+
+        <div class="trade-cost">
+          주문 금액: <strong id="trade-total-cost">—</strong>원
+        </div>
+
+        <div class="trade-btns">
+          <button class="btn-buy" onclick="executeTrade('buy')">▲ 매수</button>
+          <button class="btn-sell" onclick="executeTrade('sell')">▼ 매도</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EVENT FEED -->
+<div id="event-feed"></div>
+
+<script>
+// ── CONFIG ──
+const API = ''; // 같은 origin에서 서빙 시 비워둠. 배포 후 Render URL로 교체
+let userId = null, username = null;
+let currentStock = null, qty = 1;
+let priceChart = null;
+let lastEventCheck = 0;
+let eventInitialized = false;
+let prevPanel = 'home';
+let allStocks = [];
+let portfolio = { cash: 0, stocks: [] };
+let newsFeed = []; // 뉴스 누적 목록 (최대 20개)
+
+// ── TAB SWITCH ──
+let loginMode = 'new';
+function switchTab(mode) {
+  loginMode = mode;
+  document.getElementById('tab-new').classList.toggle('active', mode === 'new');
+  document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+}
+
+// ── LOGIN ──
+async function handleLogin() {
+  const uname = document.getElementById('username-input').value.trim();
+  const err = document.getElementById('login-err');
+  err.textContent = '';
+  if (!uname) { err.textContent = '닉네임을 입력하세요'; return; }
+
+  const endpoint = loginMode === 'new' ? '/create_user' : '/login';
+  try {
+    const res = await fetch(API + endpoint, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: uname })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (res.status === 409 && loginMode === 'new') {
+        err.textContent = '이미 존재하는 닉네임입니다. 기존 유저 탭을 이용하세요';
+      } else {
+        err.textContent = data.error || '오류가 발생했습니다';
+      }
+      return;
+    }
+    userId = data.user_id;
+    username = data.username;
+    document.getElementById('topbar-username').textContent = username;
+    document.getElementById('view-login').classList.remove('active');
+    document.getElementById('view-main').classList.add('active');
+    showMain();
+    startPolling();
+  } catch(e) {
+    err.textContent = '서버 연결 실패. 잠시 후 다시 시도해주세요';
+  }
+}
+
+// ── POLLING ──
+function startPolling() {
+  refreshAll();
+  setInterval(refreshAll, 5000);
+  setInterval(checkEvents, 3000);
+}
+
+async function refreshAll() {
+  await Promise.all([fetchPortfolio(), fetchStocks(), fetchRanking()]);
+  if (currentStock) {
+    updateDetailPrices();
+    await updateChart();  // 차트 데이터도 갱신
+  }
+}
+
+// ── API CALLS ──
+async function fetchPortfolio() {
+  if (!userId) return;
+  try {
+    const res = await fetch(API + `/portfolio/${userId}`);
+    portfolio = await res.json();
+    renderPortfolio();
+  } catch(e) {}
+}
+
+async function fetchStocks() {
+  try {
+    const res = await fetch(API + '/stocks');
+    allStocks = await res.json();
+    renderStockGrid();
+  } catch(e) {}
+}
+
+async function fetchRanking() {
+  try {
+    const res = await fetch(API + '/ranking');
+    const data = await res.json();
+    renderRanking(data);
+  } catch(e) {}
+}
+
+async function checkEvents() {
+  try {
+    const res = await fetch(API + '/events/recent');
+    const events = await res.json();
+
+    if (!eventInitialized) {
+      // 첫 로드: 서버 이벤트 시간을 그대로 기준점으로 저장 (팝업 안 띄움)
+      // 서버가 UTC HH:MM:SS 문자열을 주므로, 비교도 문자열로 통일
+      if (events.length > 0) {
+        lastEventCheck = events[events.length - 1].time;
+      } else {
+        // 이벤트가 없으면 현재 UTC 시간을 문자열로 저장
+        const now = new Date();
+        lastEventCheck = now.toISOString().substring(11, 19); // "HH:MM:SS"
+      }
+      eventInitialized = true;
+      return;
+    }
+
+    // 문자열 비교: "HH:MM:SS" 형식은 알파벳순 = 시간순이라 직접 비교 가능
+    const newEvents = events.filter(e => e.time > lastEventCheck);
+    if (newEvents.length > 0) {
+      lastEventCheck = newEvents[newEvents.length - 1].time;
+      newEvents.forEach(ev => {
+        showEventToast(ev);
+        addNewsItem(ev);
+      });
+    }
+  } catch(e) {}
+}
+
+// 뉴스 피드에 아이템 추가
+function addNewsItem(ev) {
+  newsFeed.unshift(ev); // 최신 뉴스를 맨 위로
+  if (newsFeed.length > 20) newsFeed = newsFeed.slice(0, 20);
+  renderNewsFeed();
+}
+
+function renderNewsFeed() {
+  const list = document.getElementById('news-list');
+  if (!list) return;
+  if (newsFeed.length === 0) {
+    list.innerHTML = '<div class="empty-state">뉴스를 기다리는 중...</div>';
+    return;
+  }
+  list.innerHTML = newsFeed.map(ev => {
+    const isPos = ev.type === 'positive';
+    const impactSign = isPos ? '+' : '';
+    const impactPct = Math.round(Math.abs(ev.impact) * 100);
+    return `
+    <div class="news-item ${isPos ? 'pos' : 'neg'}">
+      <div class="news-icon">${isPos ? '📈' : '📉'}</div>
+      <div class="news-body">
+        <div class="news-meta">${ev.stock_name} (${ev.ticker}) · ${ev.time} · ${impactSign}${isPos ? '' : '-'}${impactPct}%</div>
+        <div class="news-title">${ev.title}</div>
+        <div class="news-desc">${ev.description}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER ──
+function fmt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+
+function renderPortfolio() {
+  if (!portfolio || portfolio.error) return;
+  const stockVal = (portfolio.stocks || []).reduce((s, h) => s + h.value, 0);
+  document.getElementById('total-asset').innerHTML = `${fmt(portfolio.total)}<span>원</span>`;
+  document.getElementById('cash-display').textContent = fmt(portfolio.cash) + '원';
+  document.getElementById('stock-value').textContent = fmt(stockVal) + '원';
+
+  const list = document.getElementById('holdings-list');
+  if (!portfolio.stocks || portfolio.stocks.length === 0) {
+    list.innerHTML = '<div class="empty-state">보유 종목이 없습니다<br><small>종목 탭에서 매수해보세요!</small></div>';
+    return;
+  }
+
+  list.innerHTML = portfolio.stocks.map(h => {
+    const profitSign = h.profit >= 0 ? '+' : '';
+    const profitClass = h.profit > 0 ? 'pos' : h.profit < 0 ? 'neg' : 'neu';
+    return `
+    <div class="holding-item" onclick="openDetail(${h.stock_id})">
+      <div class="holding-ticker">${h.ticker}</div>
+      <div class="holding-name">${h.stock}<br><small style="color:var(--muted);font-size:11px">평균 ${fmt(h.avg_price)}원 · ${h.quantity}주</small></div>
+      <div style="text-align:right">
+        <div class="holding-value">${fmt(h.value)}원</div>
+        <div class="stock-change ${profitClass}" style="font-size:12px">${profitSign}${fmt(h.profit)}원 (${profitSign}${h.profit_pct.toFixed(1)}%)</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+const STOCK_COLORS = ['#7c6eff','#22c55e','#f59e0b','#06b6d4','#f43f5e'];
+const STOCK_ICONS = ['S','T','A','K','N'];
+
+function renderStockGrid() {
+  const grid = document.getElementById('stock-grid');
+  if (!allStocks.length) { grid.innerHTML = '<div class="empty-state">로딩 중...</div>'; return; }
+
+  grid.innerHTML = allStocks.map((s, i) => {
+    const color = STOCK_COLORS[i % STOCK_COLORS.length];
+    const icon = STOCK_ICONS[i % STOCK_ICONS.length];
+    const chg = s.change_pct;
+    const chgClass = chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'neu';
+    const chgSign = chg > 0 ? '+' : '';
+    const eventBadge = s.has_event
+      ? `<span class="event-badge event-${s.event_direction}">${s.event_direction === 'positive' ? '▲ 호재' : '▼ 악재'}</span>`
+      : '';
+    return `
+      <div class="stock-card" onclick="openDetail(${s.id})">
+        <div class="stock-icon" style="background:${color}22; color:${color}">${icon}</div>
+        <div class="stock-info">
+          <div class="stock-name">${s.name} ${eventBadge}</div>
+          <div class="stock-desc">${s.description || ''}</div>
+        </div>
+        <div class="stock-right">
+          <div class="stock-price" style="color:${color}">${fmt(s.price)}원</div>
+          <div class="stock-change ${chgClass}">${chgSign}${chg.toFixed(2)}%</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderRanking(data) {
+  const list = document.getElementById('ranking-list');
+  if (!data.length) { list.innerHTML = '<div class="empty-state">참가자가 없습니다</div>'; return; }
+
+  list.innerHTML = data.map((u, i) => {
+    const numClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1;
+    const isMe = u.username === username;
+    return `
+      <div class="rank-item ${isMe ? 'rank-me' : ''}">
+        <div class="rank-num ${numClass}">${medal}</div>
+        <div class="rank-name">${isMe ? '⭐ ' : ''}${u.username}</div>
+        <div class="rank-total">${fmt(u.total)}원</div>
+      </div>`;
+  }).join('');
+}
+
+// ── NAVIGATION ──
+function showMain() {
+  document.getElementById('panel-home').style.display = 'block';
+  document.getElementById('panel-stocks').style.display = 'none';
+  document.getElementById('panel-detail').style.display = 'none';
+  document.getElementById('nav-home').classList.add('active');
+  document.getElementById('nav-stocks').classList.remove('active');
+  prevPanel = 'home';
+}
+
+function showStocks() {
+  document.getElementById('panel-home').style.display = 'none';
+  document.getElementById('panel-stocks').style.display = 'block';
+  document.getElementById('panel-detail').style.display = 'none';
+  document.getElementById('nav-home').classList.remove('active');
+  document.getElementById('nav-stocks').classList.add('active');
+  prevPanel = 'stocks';
+}
+
+function backFromDetail() {
+  document.getElementById('panel-detail').style.display = 'none';
+  if (prevPanel === 'stocks') {
+    showStocks();
+  } else {
+    showMain();
+  }
+  currentStock = null;
+  if (priceChart) { priceChart.destroy(); priceChart = null; }
+}
+
+// ── STOCK DETAIL ──
+async function openDetail(stockId) {
+  currentStock = allStocks.find(s => s.id === stockId);
+  if (!currentStock) return;
+
+  document.getElementById('panel-home').style.display = 'none';
+  document.getElementById('panel-stocks').style.display = 'none';
+  document.getElementById('panel-detail').style.display = 'block';
+
+  qty = 1;
+  updateDetailPrices();
+  await loadChart(stockId);
+}
+
+function updateDetailPrices() {
+  if (!currentStock) return;
+  const s = allStocks.find(x => x.id === currentStock.id);
+  if (s) currentStock = s;
+
+  document.getElementById('detail-ticker').textContent = currentStock.ticker;
+  document.getElementById('detail-name').textContent = currentStock.name;
+  document.getElementById('detail-price').textContent = fmt(currentStock.price) + '원';
+  const chg = currentStock.change_pct;
+  const el = document.getElementById('detail-change');
+  el.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+  el.className = 'stock-change ' + (chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'neu');
+
+  document.getElementById('trade-cash').textContent = fmt(portfolio.cash) + '원';
+  const holding = (portfolio.stocks || []).find(h => h.stock_id === currentStock.id);
+  document.getElementById('trade-holding').textContent = (holding ? holding.quantity : 0) + '주';
+
+  updateQtyDisplay();
+}
+
+async function loadChart(stockId) {
+  try {
+    const res = await fetch(API + `/history/${stockId}`);
+    const data = await res.json();
+
+    if (priceChart) { priceChart.destroy(); priceChart = null; }
+    const ctx = document.getElementById('price-chart').getContext('2d');
+
+    const prices = data.map(d => d.price);
+    const labels = data.map(d => d.time);
+    const isUp = prices.length < 2 || prices[prices.length-1] >= prices[0];
+    const color = isUp ? '#22c55e' : '#ef4444';
+
+    priceChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: prices,
+          borderColor: color,
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          backgroundColor: isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { label: ctx => fmt(ctx.raw) + '원' }
+        }},
+        scales: {
+          x: { display: false },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#8888aa', font: { family: 'Space Mono', size: 11 },
+              callback: v => fmt(v) }
+          }
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+// 차트 데이터만 갱신 (차트 객체 재사용, 깜빡임 없음)
+async function updateChart() {
+  if (!priceChart || !currentStock) return;
+  try {
+    const res = await fetch(API + `/history/${currentStock.id}`);
+    const data = await res.json();
+    if (!data.length) return;
+
+    const prices = data.map(d => d.price);
+    const labels = data.map(d => d.time);
+    const isUp = prices.length < 2 || prices[prices.length-1] >= prices[0];
+    const color = isUp ? '#22c55e' : '#ef4444';
+
+    priceChart.data.labels = labels;
+    priceChart.data.datasets[0].data = prices;
+    priceChart.data.datasets[0].borderColor = color;
+    priceChart.data.datasets[0].backgroundColor = isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)';
+    priceChart.update('none'); // 애니메이션 없이 즉시 갱신
+  } catch(e) {}
+}
+
+// ── QUANTITY ──
+function changeQty(delta) {
+  qty = Math.max(1, qty + delta);
+  updateQtyDisplay();
+}
+
+function setQtyPct(pct) {
+  if (!currentStock) return;
+  const maxBuy = Math.floor(portfolio.cash / currentStock.price);
+  qty = Math.max(1, Math.floor(maxBuy * pct));
+  updateQtyDisplay();
+}
+
+function setQtyAll() {
+  if (!currentStock) return;
+  qty = Math.max(1, Math.floor(portfolio.cash / currentStock.price));
+  updateQtyDisplay();
+}
+
+function updateQtyDisplay() {
+  document.getElementById('qty-display').textContent = qty;
+  if (currentStock) {
+    document.getElementById('trade-total-cost').textContent = fmt(currentStock.price * qty);
+  }
+}
+
+// ── TRADE ──
+async function executeTrade(action) {
+  if (!userId || !currentStock) return;
+  try {
+    const res = await fetch(API + `/${action}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, stock_id: currentStock.id, quantity: qty })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message, 'success');
+      await fetchPortfolio();
+      updateDetailPrices();
+    } else {
+      showToast(data.error || '오류 발생', 'error');
+    }
+  } catch(e) {
+    showToast('서버 오류', 'error');
+  }
+}
+
+// ── TOAST ──
+function showToast(msg, type) {
+  const el = document.createElement('div');
+  el.id = 'toast-msg';
+  el.className = type;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function showEventToast(ev) {
+  const feed = document.getElementById('event-feed');
+  const toast = document.createElement('div');
+  toast.className = `event-toast ${ev.type === 'positive' ? 'pos' : 'neg'}`;
+  toast.innerHTML = `
+    <div class="toast-icon">${ev.type === 'positive' ? '📈' : '📉'}</div>
+    <div class="toast-body">
+      <div class="toast-stock">${ev.stock_name} (${ev.ticker}) · ${ev.time}</div>
+      <div class="toast-title">${ev.title}</div>
+      <div class="toast-desc">${ev.description}</div>
+    </div>`;
+  feed.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'toastOut 0.3s forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 6000);
+}
+
+// ── ENTER KEY ──
+document.getElementById('username-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleLogin();
+});
+</script>
+</body>
+</html>
