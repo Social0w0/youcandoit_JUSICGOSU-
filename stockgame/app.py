@@ -71,6 +71,14 @@ with app.app_context():
             conn.commit()
         print("[MIGRATION] avg_price 컬럼 추가 완료")
 
+    # password 컬럼 마이그레이션
+    user_cols = [c['name'] for c in inspector.get_columns('user')]
+    if 'password' not in user_cols:
+        with db.engine.connect() as conn:
+            conn.execute(text("""ALTER TABLE "user" ADD COLUMN password VARCHAR(100) DEFAULT '' """))
+            conn.commit()
+        print("[MIGRATION] password 컬럼 추가 완료")
+
     # 종목 목록 - 새 종목은 여기에 추가하면 자동으로 DB에 반영됨
     STOCK_LIST = [
         dict(name="오성전자",           ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
@@ -140,10 +148,15 @@ def index():
 @app.route("/create_user", methods=["POST"])
 def create_user():
     username = request.json.get("username", "").strip()
+    password = request.json.get("password", "").strip()
     if not username:
         return jsonify({"error": "유저명을 입력해주세요"}), 400
     if len(username) > 20:
         return jsonify({"error": "유저명은 20자 이내로 입력해주세요"}), 400
+    if not password:
+        return jsonify({"error": "비밀번호를 입력해주세요"}), 400
+    if len(password) > 50:
+        return jsonify({"error": "비밀번호는 50자 이내로 입력해주세요"}), 400
 
     existing = db.session.execute(
         db.select(User).where(User.username == username)
@@ -152,7 +165,7 @@ def create_user():
     if existing:
         return jsonify({"error": "이미 존재하는 유저명입니다", "user_id": existing.id}), 409
 
-    user = User(username=username)
+    user = User(username=username, password=password)
     db.session.add(user)
     db.session.commit()
     return jsonify({"message": "유저 생성 완료", "user_id": user.id, "username": user.username})
@@ -163,12 +176,22 @@ def create_user():
 @app.route("/login", methods=["POST"])
 def login():
     username = request.json.get("username", "").strip()
+    password = request.json.get("password", "").strip()
     user = db.session.execute(
         db.select(User).where(User.username == username)
     ).scalar_one_or_none()
 
     if not user:
         return jsonify({"error": "존재하지 않는 유저입니다"}), 404
+
+    if not user.password:
+        # 비밀번호 없는 기존 유저 → 처음 입력한 비밀번호로 등록
+        if not password:
+            return jsonify({"error": "비밀번호를 입력하세요 (첫 로그인 시 비밀번호가 설정됩니다)"}), 400
+        user.password = password
+        db.session.commit()
+    elif user.password != password:
+        return jsonify({"error": "비밀번호가 틀렸습니다"}), 401
 
     return jsonify({"user_id": user.id, "username": user.username, "cash": user.cash})
 

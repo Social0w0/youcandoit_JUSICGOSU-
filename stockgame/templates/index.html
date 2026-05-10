@@ -582,6 +582,9 @@
     <div class="login-input-wrap">
       <input class="login-input" id="username-input" type="text" placeholder="닉네임 입력 (최대 20자)" maxlength="20">
     </div>
+    <div class="login-input-wrap">
+      <input class="login-input" id="password-input" type="password" placeholder="비밀번호 입력" maxlength="50">
+    </div>
     <button class="btn-primary" onclick="handleLogin()">🚀 시작하기</button>
     <div class="login-err" id="login-err"></div>
   </div>
@@ -760,11 +763,14 @@ async function handleLogin() {
   err.textContent = '';
   if (!uname) { err.textContent = '닉네임을 입력하세요'; return; }
 
+  const pw = document.getElementById('password-input').value.trim();
+  if (!pw) { err.textContent = '비밀번호를 입력하세요'; btn.textContent = '🚀 시작하기'; btn.disabled = false; return; }
+
   const endpoint = loginMode === 'new' ? '/create_user' : '/login';
   try {
     const res = await fetch(API + endpoint, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: uname })
+      body: JSON.stringify({ username: uname, password: pw })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -1237,6 +1243,9 @@ function showEventToast(ev) {
 
 // ── ENTER KEY ──
 document.getElementById('username-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('password-input').focus();
+});
+document.getElementById('password-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') handleLogin();
 });
 </script>
