@@ -407,7 +407,12 @@
   .qty-display {
     flex: 1; text-align: center;
     font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+    background: transparent; border: none; outline: none;
+    color: var(--text); width: 0; min-width: 0;
+    -moz-appearance: textfield;
   }
+  .qty-display::-webkit-outer-spin-button,
+  .qty-display::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .qty-presets {
     display: flex; gap: 8px; margin-bottom: 16px;
   }
@@ -707,7 +712,8 @@
 
         <div class="qty-wrap">
           <button class="qty-btn" onclick="changeQty(-1)">−</button>
-          <div class="qty-display" id="qty-display">1</div>
+          <input class="qty-display" id="qty-display" type="number" value="1" min="1"
+            oninput="onQtyInput(this)" onblur="onQtyBlur(this)">
           <button class="qty-btn" onclick="changeQty(1)">+</button>
         </div>
 
@@ -1018,6 +1024,8 @@ async function openDetail(stockId) {
   document.getElementById('panel-detail').style.display = 'block';
 
   qty = 1;
+  const qtyEl = document.getElementById('qty-display');
+  if (qtyEl) qtyEl.value = 1;
   updateDetailPrices();
   await loadChart(stockId);
   await loadEarnings(stockId);
@@ -1186,10 +1194,27 @@ function setQtyAll() {
 }
 
 function updateQtyDisplay() {
-  document.getElementById('qty-display').textContent = qty;
+  document.getElementById('qty-display').value = qty;
   if (currentStock) {
     document.getElementById('trade-total-cost').textContent = fmt(currentStock.price * qty);
   }
+}
+
+function onQtyInput(el) {
+  const v = parseInt(el.value);
+  if (!isNaN(v) && v >= 1) {
+    qty = v;
+    if (currentStock) {
+      document.getElementById('trade-total-cost').textContent = fmt(currentStock.price * qty);
+    }
+  }
+}
+
+function onQtyBlur(el) {
+  // 포커스 벗어날 때 유효하지 않은 값 보정
+  const v = parseInt(el.value);
+  qty = (!isNaN(v) && v >= 1) ? v : 1;
+  updateQtyDisplay();
 }
 
 // ── TRADE ──
