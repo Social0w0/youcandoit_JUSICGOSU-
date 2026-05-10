@@ -352,6 +352,14 @@ def ranking():
     return jsonify(ranking_list)
 
 # -------------------------
+# 실적 발표 조회
+# -------------------------
+@app.route("/earnings/<int:stock_id>")
+def get_earnings(stock_id):
+    history = earnings_history.get(stock_id, [])
+    return jsonify(list(reversed(history)))  # 최신순
+
+# -------------------------
 # 최근 이벤트
 # -------------------------
 @app.route("/events/recent")
@@ -407,6 +415,66 @@ def update_stock_prices():
     db.session.commit()
 
 
+# -------------------------
+# 실적 발표 로직
+# -------------------------
+# 종목별 기준 실적 (매출/영업이익/순이익 단위: 억원)
+STOCK_FINANCIALS = {
+    "오성전자": {"revenue": 3000, "operating": 450, "net": 320},
+    "테슬라":   {"revenue": 1800, "operating": 210, "net": 150},
+    "애플":     {"revenue": 2500, "operating": 600, "net": 480},
+    "카카오":   {"revenue": 900,  "operating": 120, "net": 85},
+    "네이버":   {"revenue": 1100, "operating": 200, "net": 160},
+    "가천대":   {"revenue": 500,  "operating": 60,  "net": 40},
+}
+
+# 실적 기록 저장 (메모리 → DB 저장 안 하고 메모리로만, 재시작 시 초기화)
+earnings_history = {}  # stock_id: [list of earnings]
+
+def generate_earnings(stock, is_positive):
+    base = STOCK_FINANCIALS.get(stock.name, {"revenue": 1000, "operating": 150, "net": 100})
+    # 호재면 좋은 실적, 악재면 나쁜 실적
+    if is_positive:
+        multiplier = random.uniform(1.05, 1.30)
+        beat = "▲ 예상치 상회"
+    else:
+        multiplier = random.uniform(0.65, 0.92)
+        beat = "▼ 예상치 하회"
+
+    revenue = round(base["revenue"] * multiplier * random.uniform(0.95, 1.05))
+    operating = round(base["operating"] * multiplier * random.uniform(0.90, 1.10))
+    net = round(base["net"] * multiplier * random.uniform(0.85, 1.15))
+
+    # 전분기 대비 증감률
+    prev = earnings_history.get(stock.id, [{}])[-1]
+    rev_chg = round((revenue / prev.get("revenue", revenue) - 1) * 100, 1) if prev.get("revenue") else 0
+    op_chg  = round((operating / prev.get("operating", operating) - 1) * 100, 1) if prev.get("operating") else 0
+    net_chg = round((net / prev.get("net", net) - 1) * 100, 1) if prev.get("net") else 0
+
+    quarter = ["1Q", "2Q", "3Q", "4Q"][random.randint(0,3)]
+    year = 2025
+
+    earnings = {
+        "quarter": f"{year} {quarter}",
+        "revenue": revenue,
+        "operating": operating,
+        "net": net,
+        "rev_chg": rev_chg,
+        "op_chg": op_chg,
+        "net_chg": net_chg,
+        "beat": beat,
+        "time": datetime.utcnow().strftime("%H:%M:%S")
+    }
+
+    if stock.id not in earnings_history:
+        earnings_history[stock.id] = []
+    earnings_history[stock.id].append(earnings)
+    if len(earnings_history[stock.id]) > 4:
+        earnings_history[stock.id] = earnings_history[stock.id][-4:]
+
+    return earnings
+
+
 def trigger_event():
     global recent_events
     stocks = db.session.execute(db.select(Stock)).scalars().all()
@@ -449,6 +517,11 @@ def trigger_event():
             recent_events = recent_events[-50:]
 
         print(f"[EVENT] {s.name}: {title} (impact: {impact:+.0%})")
+
+        # 30% 확률로 실적 발표도 함께 생성
+        if random.random() < 0.3:
+            earnings = generate_earnings(s, is_positive)
+            print(f"[EARNINGS] {s.name} {earnings['quarter']}: 매출 {earnings['revenue']}억, 영업이익 {earnings['operating']}억")
 
 
 def game_tick():

@@ -500,6 +500,45 @@
 
   .empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 14px; }
 
+  /* ── EARNINGS ── */
+  .earnings-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .earnings-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .earnings-quarter {
+    font-family: var(--font-mono); font-size: 13px;
+    color: var(--accent); font-weight: 700;
+  }
+  .earnings-beat {
+    font-size: 12px; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px;
+  }
+  .earnings-beat.pos { background: rgba(34,197,94,0.15); color: var(--green); }
+  .earnings-beat.neg { background: rgba(239,68,68,0.15); color: var(--red); }
+  .earnings-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  }
+  .earnings-item {
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    text-align: center;
+  }
+  .earnings-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .earnings-value { font-family: var(--font-mono); font-size: 15px; font-weight: 700; }
+  .earnings-chg { font-size: 11px; margin-top: 3px; font-family: var(--font-mono); }
+  .earnings-empty {
+    text-align: center; padding: 20px;
+    color: var(--muted); font-size: 13px;
+  }
+
   /* ── NEWS FEED ── */
   .news-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
   .news-item {
@@ -639,6 +678,17 @@
         <canvas id="price-chart"></canvas>
       </div>
 
+      <!-- EARNINGS PANEL -->
+      <div class="earnings-wrap">
+        <div class="earnings-head">
+          <div class="sec-title" style="margin-bottom:0">📊 분기 실적</div>
+          <div class="earnings-quarter" id="earnings-quarter">—</div>
+        </div>
+        <div id="earnings-content">
+          <div class="earnings-empty">실적 발표를 기다리는 중...<br><small>이벤트 발생 시 실적이 공개됩니다</small></div>
+        </div>
+      </div>
+
       <!-- TRADE PANEL -->
       <div class="trade-panel">
         <div class="trade-grid" style="margin-bottom:16px;">
@@ -748,7 +798,8 @@ async function refreshAll() {
   await Promise.all([fetchPortfolio(), fetchStocks(), fetchRanking()]);
   if (currentStock) {
     updateDetailPrices();
-    await updateChart();  // 차트 데이터도 갱신
+    await updateChart();
+    await loadEarnings(currentStock.id);
   }
 }
 
@@ -963,6 +1014,7 @@ async function openDetail(stockId) {
   qty = 1;
   updateDetailPrices();
   await loadChart(stockId);
+  await loadEarnings(stockId);
 }
 
 function updateDetailPrices() {
@@ -1028,6 +1080,58 @@ async function loadChart(stockId) {
       }
     });
   } catch(e) {}
+}
+
+// ── EARNINGS ──
+async function loadEarnings(stockId) {
+  try {
+    const res = await fetch(API + `/earnings/${stockId}`);
+    const data = await res.json();
+    renderEarnings(data);
+  } catch(e) {}
+}
+
+function renderEarnings(data) {
+  const content = document.getElementById('earnings-content');
+  const quarter = document.getElementById('earnings-quarter');
+  if (!content) return;
+
+  if (!data || data.length === 0) {
+    quarter.textContent = '—';
+    content.innerHTML = '<div class="earnings-empty">실적 발표를 기다리는 중...<br><small>이벤트 발생 시 실적이 공개됩니다</small></div>';
+    return;
+  }
+
+  const e = data[0]; // 최신 실적
+  const isPos = e.beat.includes('상회');
+  quarter.textContent = e.quarter;
+
+  const chgColor = (v) => v > 0 ? 'color:var(--green)' : v < 0 ? 'color:var(--red)' : 'color:var(--muted)';
+  const chgSign = (v) => v > 0 ? '+' : '';
+
+  content.innerHTML = `
+    <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+      <span class="earnings-beat ${isPos ? 'pos' : 'neg'}">${e.beat}</span>
+    </div>
+    <div class="earnings-grid">
+      <div class="earnings-item">
+        <div class="earnings-label">매출</div>
+        <div class="earnings-value">${e.revenue.toLocaleString()}억</div>
+        <div class="earnings-chg" style="${chgColor(e.rev_chg)}">${chgSign(e.rev_chg)}${e.rev_chg}%</div>
+      </div>
+      <div class="earnings-item">
+        <div class="earnings-label">영업이익</div>
+        <div class="earnings-value">${e.operating.toLocaleString()}억</div>
+        <div class="earnings-chg" style="${chgColor(e.op_chg)}">${chgSign(e.op_chg)}${e.op_chg}%</div>
+      </div>
+      <div class="earnings-item">
+        <div class="earnings-label">순이익</div>
+        <div class="earnings-value">${e.net.toLocaleString()}억</div>
+        <div class="earnings-chg" style="${chgColor(e.net_chg)}">${chgSign(e.net_chg)}${e.net_chg}%</div>
+      </div>
+    </div>
+    ${data.length > 1 ? `<div style="margin-top:12px; font-size:11px; color:var(--muted); text-align:right;">최근 ${data.length}회 실적 보유 · ${e.time} 발표</div>` : ''}
+  `;
 }
 
 // 차트 데이터만 갱신 (차트 객체 재사용, 깜빡임 없음)
