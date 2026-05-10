@@ -374,10 +374,10 @@ def history(stock_id):
         db.select(PriceHistory)
         .where(PriceHistory.stock_id == stock_id)
         .order_by(PriceHistory.timestamp.desc())
-        .limit(60)
+        .limit(300)
     ).scalars().all()
 
-    data = list(reversed(data))  # 최신 60개를 시간순으로
+    data = list(reversed(data))  # 최신 300개를 시간순으로
 
     return jsonify([
         {

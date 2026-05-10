@@ -369,8 +369,24 @@
     border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 20px;
-    height: 280px; position: relative;
+    height: 300px; position: relative;
+    overflow-x: auto; overflow-y: hidden;
   }
+  .chart-wrap::-webkit-scrollbar { height: 4px; }
+  .chart-wrap::-webkit-scrollbar-track { background: transparent; }
+  .chart-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .chart-inner {
+    position: relative;
+    height: 260px;
+    min-width: 100%;
+  }
+  /* 고점/저점 뱃지 */
+  .chart-stats {
+    display: flex; gap: 12px; margin-bottom: 10px;
+    font-size: 12px; font-family: var(--font-mono);
+  }
+  .chart-stat { display: flex; align-items: center; gap: 5px; }
+  .chart-stat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .trade-panel {
     background: var(--bg2);
     border: 1px solid var(--border);
@@ -682,8 +698,25 @@
         </div>
       </div>
 
-      <div class="chart-wrap">
-        <canvas id="price-chart"></canvas>
+      <div class="chart-wrap" id="chart-wrap">
+        <div class="chart-stats">
+          <div class="chart-stat">
+            <div class="chart-stat-dot" style="background:var(--green)"></div>
+            <span style="color:var(--muted)">고점</span>
+            <span id="chart-high" style="color:var(--green)">—</span>
+          </div>
+          <div class="chart-stat">
+            <div class="chart-stat-dot" style="background:var(--red)"></div>
+            <span style="color:var(--muted)">저점</span>
+            <span id="chart-low" style="color:var(--red)">—</span>
+          </div>
+          <div class="chart-stat" style="margin-left:auto">
+            <span style="color:var(--muted)" id="chart-range-label">최근 300틱</span>
+          </div>
+        </div>
+        <div class="chart-inner">
+          <canvas id="price-chart"></canvas>
+        </div>
       </div>
 
       <!-- EARNINGS PANEL -->
@@ -1051,49 +1084,90 @@ function updateDetailPrices() {
   updateQtyDisplay();
 }
 
+function buildChart(data) {
+  if (priceChart) { priceChart.destroy(); priceChart = null; }
+
+  const prices = data.map(d => d.price);
+  const labels = data.map(d => d.time);
+  const isUp = prices.length < 2 || prices[prices.length-1] >= prices[0];
+  const color = isUp ? '#22c55e' : '#ef4444';
+
+  const high = Math.max(...prices);
+  const low  = Math.min(...prices);
+  const highIdx = prices.indexOf(high);
+  const lowIdx  = prices.indexOf(low);
+
+  // 고점/저점 뱃지 업데이트
+  const highEl = document.getElementById('chart-high');
+  const lowEl  = document.getElementById('chart-low');
+  const rangeEl = document.getElementById('chart-range-label');
+  if (highEl) highEl.textContent = fmt(high) + '원';
+  if (lowEl)  lowEl.textContent  = fmt(low)  + '원';
+  if (rangeEl) rangeEl.textContent = `최근 ${prices.length}틱`;
+
+  // 차트 너비: 데이터 많으면 가로 확장
+  const BAR_W = 6; // 틱당 픽셀
+  const minW = document.getElementById('chart-wrap').clientWidth - 40;
+  const chartW = Math.max(minW, prices.length * BAR_W);
+  const inner = document.querySelector('.chart-inner');
+  if (inner) inner.style.width = chartW + 'px';
+
+  const ctx = document.getElementById('price-chart').getContext('2d');
+
+  priceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: prices,
+        borderColor: color,
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: true,
+        backgroundColor: isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => fmt(ctx.raw) + '원' } },
+        annotation: {}
+      },
+      scales: {
+        x: {
+          display: true,
+          ticks: {
+            color: '#8888aa',
+            font: { family: 'Space Mono', size: 10 },
+            maxTicksLimit: 10,
+            maxRotation: 0
+          },
+          grid: { display: false }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#8888aa', font: { family: 'Space Mono', size: 11 },
+            callback: v => fmt(v) }
+        }
+      }
+    }
+  });
+
+  // 차트 로드 후 맨 오른쪽(최신)으로 스크롤
+  const wrap = document.getElementById('chart-wrap');
+  if (wrap) setTimeout(() => { wrap.scrollLeft = wrap.scrollWidth; }, 50);
+}
+
 async function loadChart(stockId) {
   try {
     const res = await fetch(API + `/history/${stockId}`);
     const data = await res.json();
-
-    if (priceChart) { priceChart.destroy(); priceChart = null; }
-    const ctx = document.getElementById('price-chart').getContext('2d');
-
-    const prices = data.map(d => d.price);
-    const labels = data.map(d => d.time);
-    const isUp = prices.length < 2 || prices[prices.length-1] >= prices[0];
-    const color = isUp ? '#22c55e' : '#ef4444';
-
-    priceChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          data: prices,
-          borderColor: color,
-          borderWidth: 2,
-          pointRadius: 0,
-          fill: true,
-          backgroundColor: isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-          tension: 0.4
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
-        plugins: { legend: { display: false }, tooltip: {
-          callbacks: { label: ctx => fmt(ctx.raw) + '원' }
-        }},
-        scales: {
-          x: { display: false },
-          y: {
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: { color: '#8888aa', font: { family: 'Space Mono', size: 11 },
-              callback: v => fmt(v) }
-          }
-        }
-      }
-    });
-  } catch(e) {}
+    buildChart(data);
+  } catch(e) { console.error('loadChart error:', e); }
 }
 
 // ── EARNINGS ──
@@ -1148,29 +1222,23 @@ function renderEarnings(data) {
   `;
 }
 
-// 차트 데이터만 갱신 (차트 객체 재사용, 깜빡임 없음)
+// 차트 데이터 갱신
 async function updateChart() {
   if (!currentStock) return;
-  // 차트가 없으면 다시 생성 시도
-  if (!priceChart) {
-    await loadChart(currentStock.id);
-    return;
-  }
   try {
     const res = await fetch(API + `/history/${currentStock.id}`);
     const data = await res.json();
     if (!data.length) return;
 
-    const prices = data.map(d => d.price);
-    const labels = data.map(d => d.time);
-    const isUp = prices.length < 2 || prices[prices.length-1] >= prices[0];
-    const color = isUp ? '#22c55e' : '#ef4444';
+    const wrap = document.getElementById('chart-wrap');
+    const isAtRight = wrap ? (wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 20) : true;
 
-    priceChart.data.labels = labels;
-    priceChart.data.datasets[0].data = prices;
-    priceChart.data.datasets[0].borderColor = color;
-    priceChart.data.datasets[0].backgroundColor = isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)';
-    priceChart.update('none');
+    buildChart(data);
+
+    // 사용자가 맨 오른쪽(최신)을 보고 있을 때만 자동 스크롤
+    if (isAtRight && wrap) {
+      setTimeout(() => { wrap.scrollLeft = wrap.scrollWidth; }, 50);
+    }
   } catch(e) { console.error('updateChart error:', e); }
 }
 
