@@ -500,6 +500,28 @@
 
   .empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 14px; }
 
+  /* ── NEWS FEED ── */
+  .news-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .news-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+    animation: toastIn 0.3s ease both;
+  }
+  .news-item.pos { border-left: 3px solid var(--green); }
+  .news-item.neg { border-left: 3px solid var(--red); }
+  .news-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .news-body { flex: 1; min-width: 0; }
+  .news-meta {
+    font-size: 11px; color: var(--muted);
+    font-family: var(--font-mono);
+    margin-bottom: 3px;
+  }
+  .news-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .news-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
   @media (max-width: 768px) {
     .main-layout { grid-template-columns: 1fr; }
     .trade-grid { grid-template-columns: 1fr 1fr; }
@@ -575,6 +597,14 @@
         </div>
         <div id="ranking-list" class="rank-list">
           <div class="empty-state">로딩 중...</div>
+        </div>
+
+        <!-- NEWS FEED -->
+        <div class="sec-head" style="margin-top: 24px;">
+          <div class="sec-title">📰 뉴스 속보</div>
+        </div>
+        <div id="news-list" class="news-list">
+          <div class="empty-state">뉴스를 기다리는 중...</div>
         </div>
       </div>
     </div>
@@ -662,6 +692,7 @@ let eventInitialized = false;
 let prevPanel = 'home';
 let allStocks = [];
 let portfolio = { cash: 0, stocks: [] };
+let newsFeed = []; // 뉴스 누적 목록 (최대 20개)
 
 // ── TAB SWITCH ──
 let loginMode = 'new';
@@ -714,7 +745,10 @@ function startPolling() {
 
 async function refreshAll() {
   await Promise.all([fetchPortfolio(), fetchStocks(), fetchRanking()]);
-  if (currentStock) updateDetailPrices();
+  if (currentStock) {
+    updateDetailPrices();
+    await updateChart();  // 차트 데이터도 갱신
+  }
 }
 
 // ── API CALLS ──
@@ -766,9 +800,42 @@ async function checkEvents() {
     const newEvents = events.filter(e => e.time > lastEventCheck);
     if (newEvents.length > 0) {
       lastEventCheck = newEvents[newEvents.length - 1].time;
-      newEvents.forEach(showEventToast);
+      newEvents.forEach(ev => {
+        showEventToast(ev);
+        addNewsItem(ev);
+      });
     }
   } catch(e) {}
+}
+
+// 뉴스 피드에 아이템 추가
+function addNewsItem(ev) {
+  newsFeed.unshift(ev); // 최신 뉴스를 맨 위로
+  if (newsFeed.length > 20) newsFeed = newsFeed.slice(0, 20);
+  renderNewsFeed();
+}
+
+function renderNewsFeed() {
+  const list = document.getElementById('news-list');
+  if (!list) return;
+  if (newsFeed.length === 0) {
+    list.innerHTML = '<div class="empty-state">뉴스를 기다리는 중...</div>';
+    return;
+  }
+  list.innerHTML = newsFeed.map(ev => {
+    const isPos = ev.type === 'positive';
+    const impactSign = isPos ? '+' : '';
+    const impactPct = Math.round(Math.abs(ev.impact) * 100);
+    return `
+    <div class="news-item ${isPos ? 'pos' : 'neg'}">
+      <div class="news-icon">${isPos ? '📈' : '📉'}</div>
+      <div class="news-body">
+        <div class="news-meta">${ev.stock_name} (${ev.ticker}) · ${ev.time} · ${impactSign}${isPos ? '' : '-'}${impactPct}%</div>
+        <div class="news-title">${ev.title}</div>
+        <div class="news-desc">${ev.description}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── RENDER ──
@@ -956,6 +1023,27 @@ async function loadChart(stockId) {
         }
       }
     });
+  } catch(e) {}
+}
+
+// 차트 데이터만 갱신 (차트 객체 재사용, 깜빡임 없음)
+async function updateChart() {
+  if (!priceChart || !currentStock) return;
+  try {
+    const res = await fetch(API + `/history/${currentStock.id}`);
+    const data = await res.json();
+    if (!data.length) return;
+
+    const prices = data.map(d => d.price);
+    const labels = data.map(d => d.time);
+    const isUp = prices.length < 2 || prices[prices.length-1] >= prices[0];
+    const color = isUp ? '#22c55e' : '#ef4444';
+
+    priceChart.data.labels = labels;
+    priceChart.data.datasets[0].data = prices;
+    priceChart.data.datasets[0].borderColor = color;
+    priceChart.data.datasets[0].backgroundColor = isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)';
+    priceChart.update('none'); // 애니메이션 없이 즉시 갱신
   } catch(e) {}
 }
 
