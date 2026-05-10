@@ -9,7 +9,18 @@ from apscheduler.schedulers.background import BackgroundScheduler
 #커밋확인용
 app = Flask(__name__)
 CORS(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
+import os
+
+app = Flask(__name__)
+CORS(app)
+import os
+
+db_url = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
+
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
