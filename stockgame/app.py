@@ -88,6 +88,7 @@ with app.app_context():
         dict(name="네이버",             ticker="035420", price=1200, description="검색·커머스·핀테크 종합 플랫폼"),
         dict(name="가천대",             ticker="GCU",    price=1200, description="주식도둑의 본거지"),
         dict(name="윤상현컴퍼니",       ticker="YSH",    price=3000, description="가천대주식도둑 소유 회사"),
+        dict(name="연우신무역회사",       ticker="YSM",    price=3300, description="떡상 가능성조차 불분명한 의문의 기업"),
         dict(name="승리트릭컬주식회사", ticker="STK",    price=1000, description="수상할 정도로 대뾴니가 많은 기업"),
         dict(name="고한민성장촉진주식회사", ticker="KSJ",    price=5000, description="모두의 평균을 높이는 유망주 기업"),
         dict(name="이상어 아쿠아리움", ticker="LSA",    price=3500, description="개발자가 인정하는 아쿠아리움 ㅇㅇ"),
