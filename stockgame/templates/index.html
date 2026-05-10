@@ -693,6 +693,7 @@ let prevPanel = 'home';
 let allStocks = [];
 let portfolio = { cash: 0, stocks: [] };
 let newsFeed = []; // 뉴스 누적 목록 (최대 20개)
+let lastEventIds = new Set();
 
 // ── TAB SWITCH ──
 let loginMode = 'new';
@@ -783,20 +784,23 @@ async function checkEvents() {
     const events = await res.json();
 
     if (!eventInitialized) {
-      // 첫 로드: 서버 이벤트 시간을 그대로 기준점으로 저장 (팝업 안 띄움)
-      // 서버가 UTC HH:MM:SS 문자열을 주므로, 비교도 문자열로 통일
+      // 첫 로드: 기존 이벤트들을 뉴스피드에 바로 표시 (팝업은 안 띄움)
       if (events.length > 0) {
+        // 최신순으로 뉴스피드에 추가
+        [...events].reverse().forEach(ev => {
+          newsFeed.push(ev);
+        });
+        if (newsFeed.length > 20) newsFeed = newsFeed.slice(0, 20);
+        renderNewsFeed();
+        // 마지막 이벤트의 ID를 기준점으로 저장 (시간 대신 인덱스 기반)
         lastEventCheck = events[events.length - 1].time;
-      } else {
-        // 이벤트가 없으면 현재 UTC 시간을 문자열로 저장
-        const now = new Date();
-        lastEventCheck = now.toISOString().substring(11, 19); // "HH:MM:SS"
+        lastEventIds = new Set(events.map((_, i) => i));
       }
       eventInitialized = true;
       return;
     }
 
-    // 문자열 비교: "HH:MM:SS" 형식은 알파벳순 = 시간순이라 직접 비교 가능
+    // 이전에 없던 이벤트만 필터링 (시간 비교)
     const newEvents = events.filter(e => e.time > lastEventCheck);
     if (newEvents.length > 0) {
       lastEventCheck = newEvents[newEvents.length - 1].time;
@@ -805,7 +809,7 @@ async function checkEvents() {
         addNewsItem(ev);
       });
     }
-  } catch(e) {}
+  } catch(e) { console.error('checkEvents error:', e); }
 }
 
 // 뉴스 피드에 아이템 추가
@@ -1028,7 +1032,12 @@ async function loadChart(stockId) {
 
 // 차트 데이터만 갱신 (차트 객체 재사용, 깜빡임 없음)
 async function updateChart() {
-  if (!priceChart || !currentStock) return;
+  if (!currentStock) return;
+  // 차트가 없으면 다시 생성 시도
+  if (!priceChart) {
+    await loadChart(currentStock.id);
+    return;
+  }
   try {
     const res = await fetch(API + `/history/${currentStock.id}`);
     const data = await res.json();
@@ -1043,8 +1052,8 @@ async function updateChart() {
     priceChart.data.datasets[0].data = prices;
     priceChart.data.datasets[0].borderColor = color;
     priceChart.data.datasets[0].backgroundColor = isUp ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)';
-    priceChart.update('none'); // 애니메이션 없이 즉시 갱신
-  } catch(e) {}
+    priceChart.update('none');
+  } catch(e) { console.error('updateChart error:', e); }
 }
 
 // ── QUANTITY ──
