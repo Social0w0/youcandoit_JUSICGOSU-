@@ -79,6 +79,8 @@ with app.app_context():
             Stock(name="카카오", ticker="035720", price=800, description="국내 최대 모바일 플랫폼 기업"),
             Stock(name="네이버", ticker="035420", price=1200, description="검색·커머스·핀테크 종합 플랫폼"),
             Stock(name="가천대", ticker="035420", price=1200, description="주식도둑의 본거지"),
+            Stock(name="윤상현컴퍼니", ticker="035421", price=3000, description="가천대주식도둑 소유 회사"),
+            Stock(name="승리트릭컬주식회사", ticker="035321", price=1000, description="수상할 정도로 대뾴니가 많은 기업"),
         ]
         db.session.add_all(stocks)
         db.session.commit()
