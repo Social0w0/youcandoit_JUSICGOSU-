@@ -354,9 +354,26 @@ def ranking():
 # -------------------------
 @app.route("/events/recent")
 def get_recent_events():
-    global recent_events
-    events = recent_events[-10:]
-    return jsonify(events)
+    events = db.session.execute(
+        db.select(Event)
+        .order_by(Event.created_at.desc())
+        .limit(20)
+    ).scalars().all()
+
+    result = []
+    for e in events:
+        stock = db.session.get(Stock, e.stock_id)
+        result.append({
+            "stock_name": stock.name,
+            "ticker": stock.ticker,
+            "title": e.title,
+            "description": e.description,
+            "impact": e.impact,
+            "type": "positive" if e.impact > 0 else "negative",
+            "time": e.created_at.strftime("%H:%M:%S")
+        })
+
+    return jsonify(result)
 
 # -------------------------
 # 게임 틱 함수들
