@@ -747,24 +747,25 @@ async function checkEvents() {
   try {
     const res = await fetch(API + '/events/recent');
     const events = await res.json();
+
     if (!eventInitialized) {
-      // 첫 로드: 현재 있는 이벤트들의 최신 시간을 기준점으로 저장 (팝업 안 띄움)
+      // 첫 로드: 서버 이벤트 시간을 그대로 기준점으로 저장 (팝업 안 띄움)
+      // 서버가 UTC HH:MM:SS 문자열을 주므로, 비교도 문자열로 통일
       if (events.length > 0) {
-        const latest = events[events.length - 1];
-        lastEventCheck = new Date(`1970/01/01 ${latest.time}`).getTime();
+        lastEventCheck = events[events.length - 1].time;
       } else {
-        lastEventCheck = new Date().getTime() % 86400000;
+        // 이벤트가 없으면 현재 UTC 시간을 문자열로 저장
+        const now = new Date();
+        lastEventCheck = now.toISOString().substring(11, 19); // "HH:MM:SS"
       }
       eventInitialized = true;
       return;
     }
-    const newEvents = events.filter(e => {
-      const t = new Date(`1970/01/01 ${e.time}`).getTime();
-      return t > lastEventCheck;
-    });
+
+    // 문자열 비교: "HH:MM:SS" 형식은 알파벳순 = 시간순이라 직접 비교 가능
+    const newEvents = events.filter(e => e.time > lastEventCheck);
     if (newEvents.length > 0) {
-      const latest = newEvents[newEvents.length - 1];
-      lastEventCheck = new Date(`1970/01/01 ${latest.time}`).getTime();
+      lastEventCheck = newEvents[newEvents.length - 1].time;
       newEvents.forEach(showEventToast);
     }
   } catch(e) {}
