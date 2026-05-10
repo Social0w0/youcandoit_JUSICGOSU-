@@ -91,6 +91,37 @@ with app.app_context():
             db.session.add(h)
         db.session.commit()
 
+@app.route("/admin/reset")
+def reset():
+    # 1. 보유 주식 삭제
+    db.session.query(Holding).delete()
+
+    # 2. 이벤트 삭제
+    db.session.query(Event).delete()
+
+    # 3. 가격 히스토리 삭제
+    db.session.query(PriceHistory).delete()
+
+    # 4. 유저 돈 초기화
+    for u in User.query.all():
+        u.cash = 10000
+
+    # 5. 주식 가격 초기화 (중요!)
+    base_prices = {
+        "삼성": 1000,
+        "애플": 1500,
+        "테슬라": 2000,
+        "오성전자": 1200
+    }
+
+    for s in Stock.query.all():
+        if s.name in base_prices:
+            s.price = base_prices[s.name]
+
+    db.session.commit()
+
+    return "게임 상태 초기화 완료"
+
 # -------------------------
 # 프론트엔드 서빙
 # -------------------------
