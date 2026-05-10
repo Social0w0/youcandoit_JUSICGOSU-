@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from models import db, User, Stock, Holding, Event, PriceHistory
+from models import db, User, Stock, Holding, Event, PriceHistory, Earnings
 import random
 from datetime import datetime
 
@@ -356,8 +356,24 @@ def ranking():
 # -------------------------
 @app.route("/earnings/<int:stock_id>")
 def get_earnings(stock_id):
-    history = earnings_history.get(stock_id, [])
-    return jsonify(list(reversed(history)))  # 최신순
+    rows = db.session.execute(
+        db.select(Earnings)
+        .where(Earnings.stock_id == stock_id)
+        .order_by(Earnings.created_at.desc())
+        .limit(4)
+    ).scalars().all()
+
+    return jsonify([{
+        "quarter": e.quarter,
+        "revenue": e.revenue,
+        "operating": e.operating,
+        "net": e.net,
+        "rev_chg": e.rev_chg,
+        "op_chg": e.op_chg,
+        "net_chg": e.net_chg,
+        "beat": e.beat,
+        "time": e.created_at.strftime("%H:%M:%S")
+    } for e in rows])
 
 # -------------------------
 # 최근 이벤트
@@ -428,12 +444,8 @@ STOCK_FINANCIALS = {
     "가천대":   {"revenue": 500,  "operating": 60,  "net": 40},
 }
 
-# 실적 기록 저장 (메모리 → DB 저장 안 하고 메모리로만, 재시작 시 초기화)
-earnings_history = {}  # stock_id: [list of earnings]
-
 def generate_earnings(stock, is_positive):
     base = STOCK_FINANCIALS.get(stock.name, {"revenue": 1000, "operating": 150, "net": 100})
-    # 호재면 좋은 실적, 악재면 나쁜 실적
     if is_positive:
         multiplier = random.uniform(1.05, 1.30)
         beat = "▲ 예상치 상회"
@@ -445,32 +457,34 @@ def generate_earnings(stock, is_positive):
     operating = round(base["operating"] * multiplier * random.uniform(0.90, 1.10))
     net = round(base["net"] * multiplier * random.uniform(0.85, 1.15))
 
-    # 전분기 대비 증감률
-    prev = earnings_history.get(stock.id, [{}])[-1]
-    rev_chg = round((revenue / prev.get("revenue", revenue) - 1) * 100, 1) if prev.get("revenue") else 0
-    op_chg  = round((operating / prev.get("operating", operating) - 1) * 100, 1) if prev.get("operating") else 0
-    net_chg = round((net / prev.get("net", net) - 1) * 100, 1) if prev.get("net") else 0
+    # 전분기 대비 증감률 - DB에서 직전 실적 조회
+    prev = db.session.execute(
+        db.select(Earnings)
+        .where(Earnings.stock_id == stock.id)
+        .order_by(Earnings.created_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+    rev_chg = round((revenue / prev.revenue - 1) * 100, 1) if prev else 0
+    op_chg  = round((operating / prev.operating - 1) * 100, 1) if prev else 0
+    net_chg = round((net / prev.net - 1) * 100, 1) if prev else 0
 
     quarter = ["1Q", "2Q", "3Q", "4Q"][random.randint(0,3)]
-    year = 2025
 
-    earnings = {
-        "quarter": f"{year} {quarter}",
-        "revenue": revenue,
-        "operating": operating,
-        "net": net,
-        "rev_chg": rev_chg,
-        "op_chg": op_chg,
-        "net_chg": net_chg,
-        "beat": beat,
-        "time": datetime.utcnow().strftime("%H:%M:%S")
-    }
-
-    if stock.id not in earnings_history:
-        earnings_history[stock.id] = []
-    earnings_history[stock.id].append(earnings)
-    if len(earnings_history[stock.id]) > 4:
-        earnings_history[stock.id] = earnings_history[stock.id][-4:]
+    # DB에 저장
+    earnings = Earnings(
+        stock_id=stock.id,
+        quarter=f"2025 {quarter}",
+        revenue=revenue,
+        operating=operating,
+        net=net,
+        rev_chg=rev_chg,
+        op_chg=op_chg,
+        net_chg=net_chg,
+        beat=beat,
+    )
+    db.session.add(earnings)
+    db.session.commit()
 
     return earnings
 
@@ -521,7 +535,7 @@ def trigger_event():
         # 30% 확률로 실적 발표도 함께 생성
         if random.random() < 0.3:
             earnings = generate_earnings(s, is_positive)
-            print(f"[EARNINGS] {s.name} {earnings['quarter']}: 매출 {earnings['revenue']}억, 영업이익 {earnings['operating']}억")
+            print(f"[EARNINGS] {s.name} {earnings.quarter}: 매출 {earnings.revenue}억, 영업이익 {earnings.operating}억")
 
 
 def game_tick():

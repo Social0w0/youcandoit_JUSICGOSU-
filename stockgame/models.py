@@ -38,3 +38,16 @@ class PriceHistory(db.Model):
     stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)
     price = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Earnings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)
+    quarter = db.Column(db.String(20))       # "2025 3Q"
+    revenue = db.Column(db.Integer)           # 매출 (억원)
+    operating = db.Column(db.Integer)         # 영업이익
+    net = db.Column(db.Integer)               # 순이익
+    rev_chg = db.Column(db.Float)            # 전분기 대비 매출 증감률
+    op_chg = db.Column(db.Float)             # 영업이익 증감률
+    net_chg = db.Column(db.Float)            # 순이익 증감률
+    beat = db.Column(db.String(20))          # "▲ 예상치 상회" or "▼ 예상치 하회"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
