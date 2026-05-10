@@ -512,6 +512,17 @@
 
   .empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 14px; }
 
+  /* ── 더보기 버튼 ── */
+  .show-more-btn {
+    width: 100%; margin-top: 8px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--muted);
+    font-size: 12px; font-family: var(--font-body);
+    padding: 8px; cursor: pointer;
+    transition: all 0.2s; text-align: center;
+  }
+  .show-more-btn:hover { border-color: var(--border2); color: var(--text); }
+
   /* ── EARNINGS ── */
   .earnings-wrap {
     background: var(--bg2);
@@ -904,6 +915,8 @@ function addNewsItem(ev) {
   renderNewsFeed();
 }
 
+let newsExpanded = false;
+
 function renderNewsFeed() {
   const list = document.getElementById('news-list');
   if (!list) return;
@@ -911,7 +924,11 @@ function renderNewsFeed() {
     list.innerHTML = '<div class="empty-state">뉴스를 기다리는 중...</div>';
     return;
   }
-  list.innerHTML = newsFeed.map(ev => {
+
+  const visible = newsExpanded ? newsFeed : newsFeed.slice(0, 5);
+  const hasMore = newsFeed.length > 5;
+
+  const newsHtml = visible.map(ev => {
     const isPos = ev.type === 'positive';
     const impactSign = isPos ? '+' : '';
     const impactPct = Math.round(Math.abs(ev.impact) * 100);
@@ -925,6 +942,17 @@ function renderNewsFeed() {
       </div>
     </div>`;
   }).join('');
+
+  const moreBtn = hasMore ? `<button class="show-more-btn" onclick="toggleNews()">
+    ${newsExpanded ? '▲ 접기' : `▼ 더보기 (${newsFeed.length - 5}개)`}
+  </button>` : '';
+
+  list.innerHTML = newsHtml + moreBtn;
+}
+
+function toggleNews() {
+  newsExpanded = !newsExpanded;
+  renderNewsFeed();
 }
 
 // ── RENDER ──
@@ -989,11 +1017,18 @@ function renderStockGrid() {
   }).join('');
 }
 
+let rankingExpanded = false;
+let rankingData = [];
+
 function renderRanking(data) {
+  rankingData = data;
   const list = document.getElementById('ranking-list');
   if (!data.length) { list.innerHTML = '<div class="empty-state">참가자가 없습니다</div>'; return; }
 
-  list.innerHTML = data.map((u, i) => {
+  const visible = rankingExpanded ? data : data.slice(0, 5);
+  const hasMore = data.length > 5;
+
+  list.innerHTML = visible.map((u, i) => {
     const numClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1;
     const isMe = u.username === username;
@@ -1004,6 +1039,17 @@ function renderRanking(data) {
         <div class="rank-total">${fmt(u.total)}원</div>
       </div>`;
   }).join('');
+
+  if (hasMore) {
+    list.innerHTML += `<button class="show-more-btn" onclick="toggleRanking()">
+      ${rankingExpanded ? '▲ 접기' : `▼ 더보기 (${data.length - 5}명)`}
+    </button>`;
+  }
+}
+
+function toggleRanking() {
+  rankingExpanded = !rankingExpanded;
+  renderRanking(rankingData);
 }
 
 // ── NAVIGATION ──
