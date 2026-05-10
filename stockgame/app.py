@@ -71,25 +71,30 @@ with app.app_context():
             conn.commit()
         print("[MIGRATION] avg_price 컬럼 추가 완료")
 
-    if Stock.query.count() == 0:
-        stocks = [
-            Stock(name="오성전자", ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
-            Stock(name="테슬라", ticker="TSLA", price=2000, description="전기차 및 에너지 혁신 기업"),
-            Stock(name="애플", ticker="AAPL", price=1500, description="아이폰·맥 등 프리미엄 IT 기기 기업"),
-            Stock(name="카카오", ticker="035720", price=800, description="국내 최대 모바일 플랫폼 기업"),
-            Stock(name="네이버", ticker="035420", price=1200, description="검색·커머스·핀테크 종합 플랫폼"),
-            Stock(name="가천대", ticker="035420", price=1200, description="주식도둑의 본거지"),
-            Stock(name="윤상현컴퍼니", ticker="035421", price=3000, description="가천대주식도둑 소유 회사"),
-            Stock(name="승리트릭컬주식회사", ticker="035321", price=1000, description="수상할 정도로 대뾴니가 많은 기업"),
-        ]
-        db.session.add_all(stocks)
-        db.session.commit()
+    # 종목 목록 - 새 종목은 여기에 추가하면 자동으로 DB에 반영됨
+    STOCK_LIST = [
+        dict(name="오성전자",           ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
+        dict(name="테슬라",             ticker="TSLA",   price=2000, description="전기차 및 에너지 혁신 기업"),
+        dict(name="애플",               ticker="AAPL",   price=1500, description="아이폰·맥 등 프리미엄 IT 기기 기업"),
+        dict(name="카카오",             ticker="035720", price=800,  description="국내 최대 모바일 플랫폼 기업"),
+        dict(name="네이버",             ticker="035420", price=1200, description="검색·커머스·핀테크 종합 플랫폼"),
+        dict(name="가천대",             ticker="GCU",    price=1200, description="주식도둑의 본거지"),
+        dict(name="윤상현컴퍼니",       ticker="YSH",    price=3000, description="가천대주식도둑 소유 회사"),
+        dict(name="승리트릭컬주식회사", ticker="STK",    price=1000, description="수상할 정도로 대뾴니가 많은 기업"),
+    ]
 
-        # 초기 가격 히스토리 저장
-        for s in stocks:
-            h = PriceHistory(stock_id=s.id, price=s.price)
+    existing_names = {s.name for s in db.session.execute(db.select(Stock)).scalars().all()}
+
+    for s_data in STOCK_LIST:
+        if s_data["name"] not in existing_names:
+            new_stock = Stock(**s_data)
+            db.session.add(new_stock)
+            db.session.flush()  # id 확보
+            h = PriceHistory(stock_id=new_stock.id, price=new_stock.price)
             db.session.add(h)
-        db.session.commit()
+            print(f"[INIT] 새 종목 추가: {s_data['name']}")
+
+    db.session.commit()
 
 @app.route("/admin/reset")
 def reset():
