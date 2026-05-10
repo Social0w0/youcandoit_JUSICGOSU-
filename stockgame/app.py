@@ -89,6 +89,8 @@ with app.app_context():
         dict(name="가천대",             ticker="GCU",    price=1200, description="주식도둑의 본거지"),
         dict(name="윤상현컴퍼니",       ticker="YSH",    price=3000, description="가천대주식도둑 소유 회사"),
         dict(name="승리트릭컬주식회사", ticker="STK",    price=1000, description="수상할 정도로 대뾴니가 많은 기업"),
+        dict(name="고한민성장촉진주식회사", ticker="KSJ",    price=5000, description="모두의 평균을 높이는 유망주 기업"),
+        dict(name="이상어 아쿠아리움", ticker="LSA",    price=3500, description="개발자가 인정하는 아쿠아리움 ㅇㅇ"),
     ]
 
     existing_names = {s.name for s in db.session.execute(db.select(Stock)).scalars().all()}
