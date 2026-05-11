@@ -515,6 +515,23 @@ def get_earnings(stock_id):
     } for e in rows])
 
 # -------------------------
+# 가격 히스토리
+# -------------------------
+@app.route("/history/<int:stock_id>")
+def get_history(stock_id):
+    rows = db.session.execute(
+        db.select(PriceHistory)
+        .where(PriceHistory.stock_id == stock_id)
+        .order_by(PriceHistory.timestamp.asc())
+        .limit(360)
+    ).scalars().all()
+
+    return jsonify([{
+        "price": round(r.price, 2),
+        "time": r.timestamp.strftime("%H:%M:%S")
+    } for r in rows])
+
+# -------------------------
 # 최근 이벤트
 # -------------------------
 @app.route("/events/recent")
