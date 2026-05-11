@@ -348,6 +348,67 @@
     white-space: nowrap;
   }
     .rank-me { border-color: var(--accent) !important; }
+    
+  /* ── 랭킹 칭호 뱃지 ── */
+  .rank-title-badge {
+    font-size: 11px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+    white-space: nowrap;
+  }
+  .rank-name-wrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .rank-name-row  { display: flex; align-items: center; gap: 6px; }
+
+  /* ── 배경 테마 ── */
+  .bg-purple { background: linear-gradient(135deg, #1a0a2e 0%, #0a0a0f 60%) !important; }
+  .bg-gold   { background: linear-gradient(135deg, #1a1200 0%, #0a0a0f 60%) !important; }
+  .bg-green  { background: linear-gradient(135deg, #001a0a 0%, #0a0a0f 60%) !important; }
+  .bg-red    { background: linear-gradient(135deg, #1a0000 0%, #0a0a0f 60%) !important; }
+
+  /* ── 프로필 모달 ── */
+  .profile-section { margin-bottom: 20px; }
+  .profile-section-title {
+    font-size: 12px; color: var(--muted); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 10px;
+  }
+  .title-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .title-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .title-card:hover:not(.locked) { border-color: var(--border2); }
+  .title-card.equipped { border-color: var(--accent) !important; background: rgba(124,110,255,0.1); }
+  .title-card.locked { opacity: 0.35; cursor: not-allowed; }
+  .title-card-emoji { font-size: 18px; flex-shrink: 0; }
+  .title-card-info { min-width: 0; }
+  .title-card-name { font-size: 13px; font-weight: 700; }
+  .title-card-desc { font-size: 11px; color: var(--muted); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bg-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+  .bg-swatch {
+    width: 40px; height: 40px; border-radius: 8px;
+    border: 2px solid var(--border); cursor: pointer;
+    transition: all 0.2s; flex-shrink: 0;
+  }
+  .bg-swatch:hover { transform: scale(1.1); }
+  .bg-swatch.equipped { border-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  /* ── 칭호 획득 팝업 ── */
+  .title-unlock-toast {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    z-index: 1001;
+    background: var(--bg2); border: 1px solid var(--accent);
+    border-radius: var(--radius); padding: 16px 24px;
+    text-align: center; min-width: 240px;
+    animation: toastIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    box-shadow: 0 0 24px rgba(124,110,255,0.3);
+  }
+  .title-unlock-toast .unlock-emoji { font-size: 32px; margin-bottom: 4px; }
+  .title-unlock-toast .unlock-label { font-size: 11px; color: var(--muted); }
+  .title-unlock-toast .unlock-name  { font-size: 18px; font-weight: 700; margin-top: 2px; }
 
   /* ── DETAIL VIEW ── */
   .detail-wrap {
@@ -685,8 +746,9 @@
     <div class="topbar-spacer"></div>
     <button class="nav-btn active" id="nav-home" onclick="showMain()">홈</button>
     <button class="nav-btn" id="nav-stocks" onclick="showStocks()">종목</button>
-    <div class="topbar-user" onclick="showMain()">
+    <div class="topbar-user" onclick="openProfileModal()">
       <div class="dot"></div>
+      <span id="topbar-title-badge" style="display:none"></span>
       <span id="topbar-username">—</span>
     </div>
   </div>
@@ -870,6 +932,34 @@
   </div>
 </div>
 
+<!-- 프로필 모달 -->
+<div id="profile-modal" style="display:none;">
+  <div class="modal-overlay" onclick="closeProfileModal(event)">
+    <div class="modal-box" style="max-width:440px;" onclick="event.stopPropagation()">
+      <div class="modal-title">👤 프로필 설정</div>
+
+      <!-- 칭호 -->
+      <div class="profile-section">
+        <div class="profile-section-title">칭호</div>
+        <div class="title-grid" id="profile-title-grid">
+          <div class="empty-state" style="grid-column:1/-1">로딩 중...</div>
+        </div>
+      </div>
+
+      <!-- 배경 -->
+      <div class="profile-section">
+        <div class="profile-section-title">배경</div>
+        <div class="bg-grid" id="profile-bg-grid"></div>
+      </div>
+
+      <div class="modal-btns" style="margin-top:8px;">
+        <button class="modal-cancel" onclick="closeProfileModal()">닫기</button>
+        <button class="btn-primary" style="padding:11px" onclick="saveProfile()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── CONFIG ──
 const API = ''; // 같은 origin에서 서빙 시 비워둠. 배포 후 Render URL로 교체
@@ -924,6 +1014,7 @@ async function handleLogin() {
     document.getElementById('view-main').classList.add('active');
     showMain();
     startPolling();
+    loadProfileOnLogin();
   } catch(e) {
     err.textContent = '서버 연결 실패. 잠시 후 다시 시도해주세요';
   }
@@ -1150,13 +1241,21 @@ function renderRanking(data) {
     const numClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1;
     const isMe = u.username === username;
-    return `
-      <div class="rank-item ${isMe ? 'rank-me' : ''}">
-        <div class="rank-num ${numClass}">${medal}</div>
-        <div class="rank-name">${isMe ? '⭐ ' : ''}${u.username}</div>
-        <div class="rank-total">${fmt(u.total)}원</div>
-      </div>`;
-  }).join('');
+    const titleBadge = u.title
+  ? `<span class="rank-title-badge" style="color:${u.title.color}">${u.title.emoji} ${u.title.name}</span>`
+  : '';
+  return `
+    <div class="rank-item ${isMe ? 'rank-me' : ''}">
+      <div class="rank-num ${numClass}">${medal}</div>
+      <div class="rank-name-wrap">
+        <div class="rank-name-row">
+          <span class="rank-name">${isMe ? '⭐ ' : ''}${u.username}</span>
+        </div>
+        ${titleBadge}
+      </div>
+      <div class="rank-total">${fmt(u.total)}원</div>
+    </div>`;
+    }).join('');
 
   if (hasMore) {
     list.innerHTML += `<button class="show-more-btn" onclick="toggleRanking()">
@@ -1416,6 +1515,7 @@ async function executeTrade(action) {
     const data = await res.json();
     if (res.ok) {
       showToast(data.message, 'success');
+      handleNewTitles(data.new_titles);
       await fetchPortfolio();
       updateDetailPrices();
     } else {
@@ -1517,6 +1617,154 @@ async function executeTransfer() {
 }
 
 // 커밋용
+// ── 프로필 ──
+let profileData = null;  // 서버에서 불러온 프로필
+let pendingTitleId = undefined;  // undefined = 변경 없음, null = 해제, number = 장착
+let pendingBg = null;
+
+async function loadProfileOnLogin() {
+  try {
+    const res = await fetch(API + `/profile/${userId}`);
+    profileData = await res.json();
+    applyBackground(profileData.equipped_bg);
+    updateTopbarTitle(profileData.equipped_title_id);
+  } catch(e) {}
+}
+
+const BG_SWATCHES = [
+  { key: 'default', label: '기본',  style: 'background:#1a1a24; border-color:#444' },
+  { key: 'purple',  label: '보라',  style: 'background:linear-gradient(135deg,#3a1a5e,#1a1a24)' },
+  { key: 'gold',    label: '골드',  style: 'background:linear-gradient(135deg,#3a2a00,#1a1a24)' },
+  { key: 'green',   label: '초록',  style: 'background:linear-gradient(135deg,#003a1a,#1a1a24)' },
+  { key: 'red',     label: '레드',  style: 'background:linear-gradient(135deg,#3a0000,#1a1a24)' },
+];
+
+async function openProfileModal() {
+  document.getElementById('profile-modal').style.display = 'block';
+  pendingTitleId = undefined;
+  pendingBg = null;
+  try {
+    const res = await fetch(API + `/profile/${userId}`);
+    profileData = await res.json();
+    renderProfileModal();
+  } catch(e) {
+    console.error('프로필 로드 실패', e);
+  }
+}
+
+function closeProfileModal(e) {
+  if (e && e.target !== document.querySelector('#profile-modal .modal-overlay')) return;
+  document.getElementById('profile-modal').style.display = 'none';
+}
+
+function renderProfileModal() {
+  if (!profileData) return;
+  const equippedTitleId = pendingTitleId !== undefined ? pendingTitleId : profileData.equipped_title_id;
+  const equippedBg      = pendingBg !== null ? pendingBg : profileData.equipped_bg;
+
+  // 칭호 그리드
+  const grid = document.getElementById('profile-title-grid');
+  grid.innerHTML = profileData.titles.map(t => {
+    const isEquipped = t.id === equippedTitleId;
+    const isLocked   = !t.unlocked;
+    return `
+      <div class="title-card ${isEquipped ? 'equipped' : ''} ${isLocked ? 'locked' : ''}"
+           onclick="${isLocked ? '' : `selectTitle(${t.id})`}"
+           title="${isLocked ? '조건 미달성' : t.description}">
+        <div class="title-card-emoji">${t.emoji}</div>
+        <div class="title-card-info">
+          <div class="title-card-name" style="color:${isLocked ? 'var(--muted)' : t.color}">${t.name}</div>
+          <div class="title-card-desc">${isLocked ? fmt(t.condition_value) + '원 달성 시 해금' : t.description}</div>
+        </div>
+        ${isLocked ? '<span style="margin-left:auto;font-size:14px">🔒</span>' : ''}
+        ${isEquipped ? '<span style="margin-left:auto;font-size:14px">✓</span>' : ''}
+      </div>`;
+  }).join('');
+
+  // 배경 스와치
+  const bgGrid = document.getElementById('profile-bg-grid');
+  bgGrid.innerHTML = BG_SWATCHES.map(b => `
+    <div class="bg-swatch ${equippedBg === b.key ? 'equipped' : ''}"
+         style="${b.style}" title="${b.label}"
+         onclick="selectBg('${b.key}')"></div>
+  `).join('');
+}
+
+function selectTitle(titleId) {
+  const equippedTitleId = pendingTitleId !== undefined ? pendingTitleId : profileData.equipped_title_id;
+  // 이미 장착 중이면 해제
+  pendingTitleId = (titleId === equippedTitleId) ? null : titleId;
+  renderProfileModal();
+}
+
+function selectBg(bgKey) {
+  pendingBg = bgKey;
+  renderProfileModal();
+}
+
+async function saveProfile() {
+  if (pendingTitleId === undefined && pendingBg === null) {
+    closeProfileModal();
+    return;
+  }
+  const body = {};
+  if (pendingTitleId !== undefined) body.title_id = pendingTitleId;
+  if (pendingBg !== null) body.bg = pendingBg;
+
+  try {
+    const res = await fetch(API + `/profile/${userId}/equip`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      profileData.equipped_title_id = data.equipped_title_id;
+      profileData.equipped_bg       = data.equipped_bg;
+      applyBackground(data.equipped_bg);
+      updateTopbarTitle(data.equipped_title_id);
+      closeProfileModal();
+      showToast('프로필 저장 완료!', 'success');
+    } else {
+      showToast(data.error || '저장 실패', 'error');
+    }
+  } catch(e) {
+    showToast('서버 오류', 'error');
+  }
+}
+
+function applyBackground(bgKey) {
+  document.body.className = bgKey && bgKey !== 'default' ? `bg-${bgKey}` : '';
+}
+
+function updateTopbarTitle(titleId) {
+  const badge = document.getElementById('topbar-title-badge');
+  if (!titleId || !profileData) { badge.style.display = 'none'; return; }
+  const t = profileData.titles.find(x => x.id === titleId);
+  if (!t) { badge.style.display = 'none'; return; }
+  badge.textContent = `${t.emoji} ${t.name}`;
+  badge.style.cssText = `display:inline; font-size:11px; font-weight:700; color:${t.color};
+    background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px; margin-right:4px;`;
+}
+
+// 매수/매도 후 new_titles 처리 — executeTrade 안의 showToast 바로 뒤에 추가
+function handleNewTitles(newTitles) {
+  if (!newTitles || !newTitles.length) return;
+  newTitles.forEach((t, i) => {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'title-unlock-toast';
+      el.innerHTML = `
+        <div class="unlock-emoji">${t.emoji}</div>
+        <div class="unlock-label">칭호 획득!</div>
+        <div class="unlock-name" style="color:${t.color}">${t.name}</div>`;
+      document.body.appendChild(el);
+      setTimeout(() => { el.style.animation = 'toastOut 0.3s forwards'; setTimeout(() => el.remove(), 300); }, 3500);
+    }, i * 600);
+  });
+  // 프로필 데이터 갱신 (다음 모달 열 때 반영)
+  if (profileData) fetch(API + `/profile/${userId}`).then(r => r.json()).then(d => profileData = d);
+}
+
 // ── ENTER KEY ──
 document.getElementById('username-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('password-input').focus();
