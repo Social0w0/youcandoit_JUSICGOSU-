@@ -54,15 +54,7 @@
     pointer-events: none;
     z-index: 0;
   }
-  .asset-value {
-    overflow-wrap: break-word;
-    word-break: break-word;
-    white-space: normal;
-  
-    .asset-value {
-      max-width: 100%;
-    }}
-  
+
   /* ── VIEWS ── */
   .view { display: none; position: relative; z-index: 1; }
   .view.active { display: block; }
@@ -703,7 +695,7 @@
               background:rgba(124,110,255,0.15); border:1px solid rgba(124,110,255,0.3);
               color:var(--accent); font-family:var(--font-body); font-size:13px;
               padding:7px 14px; border-radius:var(--radius-sm); cursor:pointer;
-              transition:all 0.2s; white-space: normal; margin-top:4px;
+              transition:all 0.2s; white-space:nowrap; margin-top:4px;
             ">💸 송금</button>
           </div>
           <div class="asset-grid">
@@ -929,12 +921,17 @@ async function handleLogin() {
 // ── POLLING ──
 function startPolling() {
   refreshAll();
-  setInterval(refreshAll, 5000);
-  setInterval(checkEvents, 3000);
+  // 백엔드 틱이 10초이므로 폴링도 10초로 맞춤
+  setInterval(refreshAll, 10000);
+  // 이벤트는 조금 더 빠르게 (6초)
+  setInterval(checkEvents, 6000);
+  // 랭킹은 자주 바뀌지 않으므로 30초마다
+  setInterval(fetchRanking, 30000);
 }
 
 async function refreshAll() {
-  await Promise.all([fetchPortfolio(), fetchStocks(), fetchRanking()]);
+  // 순차 호출 대신 병렬 호출, 단 랭킹은 별도 주기로
+  await Promise.all([fetchPortfolio(), fetchStocks()]);
   if (currentStock) {
     updateDetailPrices();
     await updateChart();
@@ -1050,23 +1047,7 @@ function toggleNews() {
 }
 
 // ── RENDER ──
-function fmt(n) {
-  n = Math.floor(n);
-
-  const jo = Math.floor(n / 1_0000_0000_0000);
-  const eok = Math.floor((n % 1_0000_0000_0000) / 1_0000_0000);
-  const man = Math.floor((n % 1_0000_0000) / 10000);
-  const rest = n % 10000;
-
-  let result = "";
-
-  if (jo > 0) result += `${jo}조 `;
-  if (eok > 0) result += `${eok}억 `;
-  if (man > 0) result += `${man}만 `;
-  if (rest > 0) result += `${rest.toLocaleString()}`;
-
-  return result.trim();
-}
+function fmt(n) { return Math.round(n).toLocaleString('ko-KR'); }
 
 function renderPortfolio() {
   if (!portfolio || portfolio.error) return;
