@@ -461,7 +461,7 @@
   #event-feed {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     z-index: 999; display: flex; flex-direction: column; gap: 8px;
-    pointer-events: none; max-width: 480px; width: calc(100% - 40px);
+    max-width: 480px; width: calc(100% - 40px);
   }
   .event-toast {
     border-radius: var(--radius-sm);
@@ -1047,7 +1047,23 @@ function toggleNews() {
 }
 
 // ── RENDER ──
-function fmt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+function fmt(n) {
+  n = Math.floor(n);
+
+  const jo = Math.floor(n / 1_0000_0000_0000);
+  const eok = Math.floor((n % 1_0000_0000_0000) / 1_0000_0000);
+  const man = Math.floor((n % 1_0000_0000) / 10000);
+  const rest = n % 10000;
+
+  let result = "";
+
+  if (jo > 0) result += `${jo}조 `;
+  if (eok > 0) result += `${eok}억 `;
+  if (man > 0) result += `${man}만 `;
+  if (rest > 0) result += `${rest.toLocaleString()}`;
+
+  return result.trim();
+}
 
 function renderPortfolio() {
   if (!portfolio || portfolio.error) return;
