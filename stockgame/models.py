@@ -40,6 +40,14 @@ class PriceHistory(db.Model):
     price = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
+class Transfer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    from_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)   # 받는 금액
+    fee = db.Column(db.Float, nullable=False)       # 수수료
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 class Earnings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)

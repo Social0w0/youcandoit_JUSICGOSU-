@@ -492,6 +492,60 @@
   @keyframes toastOut {
     to { opacity: 0; transform: translateY(-10px) scale(0.95); }
   }
+  .toast-close {
+    background: none; border: none; color: rgba(255,255,255,0.5);
+    font-size: 16px; cursor: pointer; padding: 0 0 0 8px; flex-shrink: 0;
+    line-height: 1;
+  }
+  .toast-close:hover { color: #fff; }
+  #toast-mute-btn {
+    position: fixed; bottom: 24px; right: 20px; z-index: 998;
+    background: var(--bg3); border: 1px solid var(--border2);
+    color: var(--muted); font-size: 12px; font-family: var(--font-body);
+    padding: 6px 12px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.2s;
+  }
+  #toast-mute-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #toast-mute-btn.muted { border-color: var(--red); color: var(--red); }
+
+  /* ── 송금 모달 ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: toastIn 0.2s ease both;
+  }
+  .modal-box {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: 16px; padding: 32px;
+    width: 100%; max-width: 380px;
+  }
+  .modal-title {
+    font-family: var(--font-head); font-size: 18px; font-weight: 700;
+    margin-bottom: 20px;
+  }
+  .modal-input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: var(--font-body); font-size: 15px;
+    padding: 11px 14px; outline: none; margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-info {
+    font-size: 12px; color: var(--muted); margin-bottom: 16px; line-height: 1.6;
+  }
+  .modal-info span { color: var(--amber); font-family: var(--font-mono); }
+  .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-cancel {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--font-body); font-size: 14px;
+    padding: 11px; border-radius: var(--radius-sm); cursor: pointer;
+    transition: all 0.2s;
+  }
+  .modal-cancel:hover { border-color: var(--border2); color: var(--text); }
+  .modal-err { color: var(--red); font-size: 12px; margin-bottom: 12px; min-height: 18px; }
 
   /* ── TOAST MSG ── */
   #toast-msg {
@@ -632,8 +686,18 @@
       <div>
         <!-- ASSET CARD -->
         <div class="asset-card">
-          <div class="asset-label">총 자산</div>
-          <div class="asset-value" id="total-asset">—<span>원</span></div>
+          <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+            <div>
+              <div class="asset-label">총 자산</div>
+              <div class="asset-value" id="total-asset">—<span>원</span></div>
+            </div>
+            <button onclick="openTransferModal()" style="
+              background:rgba(124,110,255,0.15); border:1px solid rgba(124,110,255,0.3);
+              color:var(--accent); font-family:var(--font-body); font-size:13px;
+              padding:7px 14px; border-radius:var(--radius-sm); cursor:pointer;
+              transition:all 0.2s; white-space:nowrap; margin-top:4px;
+            ">💸 송금</button>
+          </div>
           <div class="asset-grid">
             <div class="asset-mini">
               <div class="asset-mini-label">보유 현금</div>
@@ -772,6 +836,28 @@
 
 <!-- EVENT FEED -->
 <div id="event-feed"></div>
+<button id="toast-mute-btn" onclick="toggleToastMute()">🔔 알림 켜짐</button>
+
+<!-- 송금 모달 -->
+<div id="transfer-modal" style="display:none;">
+  <div class="modal-overlay" onclick="closeTransferModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">💸 송금하기</div>
+      <input class="modal-input" id="transfer-to" type="text" placeholder="받는 유저 닉네임">
+      <input class="modal-input" id="transfer-amount" type="number" placeholder="송금액 (원)" min="1">
+      <div class="modal-info" id="transfer-info">
+        · 한 번에 총 자산의 <span>10%</span> 이하<br>
+        · 수수료 <span>5%</span> (보내는 쪽 부담)<br>
+        · 쿨타임: 기본 1분, 금액이 클수록 증가
+      </div>
+      <div class="modal-err" id="transfer-err"></div>
+      <div class="modal-btns">
+        <button class="modal-cancel" onclick="closeTransferModal()">취소</button>
+        <button class="btn-primary" style="padding:11px" onclick="executeTransfer()">송금</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── CONFIG ──
@@ -1318,8 +1404,21 @@ function showToast(msg, type) {
   setTimeout(() => el.remove(), 3000);
 }
 
+let toastMuted = false;
+
+function toggleToastMute() {
+  toastMuted = !toastMuted;
+  const btn = document.getElementById('toast-mute-btn');
+  btn.textContent = toastMuted ? '🔕 알림 꺼짐' : '🔔 알림 켜짐';
+  btn.classList.toggle('muted', toastMuted);
+}
+
 function showEventToast(ev) {
+  if (toastMuted) return;
   const feed = document.getElementById('event-feed');
+  // 팝업 최대 3개 유지
+  while (feed.children.length >= 3) feed.removeChild(feed.firstChild);
+
   const toast = document.createElement('div');
   toast.className = `event-toast ${ev.type === 'positive' ? 'pos' : 'neg'}`;
   toast.innerHTML = `
@@ -1328,12 +1427,61 @@ function showEventToast(ev) {
       <div class="toast-stock">${ev.stock_name} (${ev.ticker}) · ${ev.time}</div>
       <div class="toast-title">${ev.title}</div>
       <div class="toast-desc">${ev.description}</div>
-    </div>`;
+    </div>
+    <button class="toast-close" onclick="this.closest('.event-toast').remove()">✕</button>`;
   feed.appendChild(toast);
-  setTimeout(() => {
+  const timer = setTimeout(() => {
     toast.style.animation = 'toastOut 0.3s forwards';
     setTimeout(() => toast.remove(), 300);
   }, 6000);
+  toast.querySelector('.toast-close').addEventListener('click', () => clearTimeout(timer));
+}
+
+// ── 송금 모달 ──
+function openTransferModal() {
+  document.getElementById('transfer-modal').style.display = 'block';
+  document.getElementById('transfer-to').value = '';
+  document.getElementById('transfer-amount').value = '';
+  document.getElementById('transfer-err').textContent = '';
+  // 최대 송금액 안내 업데이트
+  const max = portfolio.total ? Math.floor(portfolio.total * 0.1) : 0;
+  document.getElementById('transfer-info').innerHTML = `
+    · 한 번에 총 자산의 <span>10%</span> 이하 (최대 <span>${max.toLocaleString()}원</span>)<br>
+    · 수수료 <span>5%</span> (보내는 쪽 부담)<br>
+    · 쿨타임: 기본 1분, 금액이 클수록 증가`;
+  setTimeout(() => document.getElementById('transfer-to').focus(), 100);
+}
+
+function closeTransferModal(e) {
+  if (e && e.target !== document.querySelector('.modal-overlay')) return;
+  document.getElementById('transfer-modal').style.display = 'none';
+}
+
+async function executeTransfer() {
+  const to = document.getElementById('transfer-to').value.trim();
+  const amount = parseInt(document.getElementById('transfer-amount').value);
+  const err = document.getElementById('transfer-err');
+  err.textContent = '';
+
+  if (!to) { err.textContent = '받는 유저 닉네임을 입력하세요'; return; }
+  if (!amount || amount <= 0) { err.textContent = '송금액을 입력하세요'; return; }
+
+  try {
+    const res = await fetch(API + '/transfer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_id: userId, to_username: to, amount })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('transfer-modal').style.display = 'none';
+      showToast(data.message, 'success');
+      await fetchPortfolio();
+    } else {
+      err.textContent = data.error || '오류 발생';
+    }
+  } catch(e) {
+    err.textContent = '서버 오류';
+  }
 }
 
 // ── ENTER KEY ──

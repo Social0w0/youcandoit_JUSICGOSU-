@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from models import db, User, Stock, Holding, Event, PriceHistory, Earnings
+from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Transfer
 import random
 from datetime import datetime
 
@@ -466,6 +466,125 @@ def get_recent_events():
         })
 
     return jsonify(result)
+
+# -------------------------
+# 관리자 - 이벤트 강제 발생
+# -------------------------
+@app.route("/admin/trigger_event", methods=["POST"])
+def admin_trigger_event():
+    data = request.json or {}
+    stock_id = data.get("stock_id")        # 없으면 랜덤
+    event_type = data.get("type", "random") # "positive" | "negative" | "random"
+    impact_val = data.get("impact")         # 없으면 랜덤
+
+    stocks = db.session.execute(db.select(Stock)).scalars().all()
+    if stock_id:
+        s = db.session.get(Stock, stock_id)
+        if not s:
+            return jsonify({"error": "종목 없음"}), 404
+    else:
+        s = random.choice(stocks)
+
+    if event_type == "positive":
+        is_positive = True
+    elif event_type == "negative":
+        is_positive = False
+    else:
+        is_positive = random.random() < 0.5
+
+    event_pool = EVENTS["positive"] if is_positive else EVENTS["negative"]
+    title, desc = random.choice(event_pool)
+
+    if impact_val is not None:
+        impact = float(impact_val)
+    else:
+        impact = random.choice([0.08,0.12,0.15,0.20]) if is_positive else random.choice([-0.08,-0.12,-0.15,-0.20])
+
+    duration = data.get("duration", random.randint(3, 8))
+
+    event = Event(stock_id=s.id, title=title, description=desc, impact=impact, duration=duration)
+    db.session.add(event)
+    db.session.commit()
+
+    print(f"[ADMIN EVENT] {s.name}: {title} (impact: {impact:+.0%})")
+    return jsonify({"message": f"{s.name}에 이벤트 발생!", "stock": s.name, "title": title, "impact": impact})
+
+# -------------------------
+# 송금 시스템
+# -------------------------
+@app.route("/transfer", methods=["POST"])
+def transfer():
+    from_id = request.json.get("from_id")
+    to_username = request.json.get("to_username", "").strip()
+    amount = float(request.json.get("amount", 0))
+
+    if amount <= 0:
+        return jsonify({"error": "송금액은 0보다 커야 합니다"}), 400
+
+    sender = db.session.get(User, from_id)
+    if not sender:
+        return jsonify({"error": "유저를 찾을 수 없습니다"}), 404
+
+    receiver = db.session.execute(
+        db.select(User).where(User.username == to_username)
+    ).scalar_one_or_none()
+    if not receiver:
+        return jsonify({"error": "받는 유저를 찾을 수 없습니다"}), 404
+    if receiver.id == from_id:
+        return jsonify({"error": "자기 자신에게는 송금할 수 없습니다"}), 400
+
+    # 총 자산 계산
+    holdings = db.session.execute(
+        db.select(Holding).where(Holding.user_id == from_id)
+    ).scalars().all()
+    total_assets = sender.cash
+    for h in holdings:
+        stock = db.session.get(Stock, h.stock_id)
+        total_assets += stock.price * h.quantity
+
+    # 10% 제한
+    max_amount = total_assets * 0.1
+    if amount > max_amount:
+        return jsonify({"error": f"한 번에 총 자산의 10% ({int(max_amount):,}원) 이하만 송금 가능합니다"}), 400
+
+    # 5% 수수료
+    total_cost = amount * 1.05
+    if sender.cash < total_cost:
+        return jsonify({"error": f"잔액 부족 (수수료 포함 {int(total_cost):,}원 필요)"}), 400
+
+    # 쿨타임 체크 (최근 송금 기록)
+    last_transfer = db.session.execute(
+        db.select(Transfer)
+        .where(Transfer.from_id == from_id)
+        .order_by(Transfer.created_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+    if last_transfer:
+        from datetime import timezone, timedelta
+        now = datetime.utcnow()
+        elapsed = (now - last_transfer.created_at).total_seconds()
+        # 쿨타임: 기본 60초 + 금액 1000원당 10초 추가 (최대 10분)
+        cooldown = min(60 + (last_transfer.amount / 1000) * 10, 600)
+        if elapsed < cooldown:
+            remain = int(cooldown - elapsed)
+            return jsonify({"error": f"쿨타임 중입니다. {remain}초 후 다시 시도하세요"}), 429
+
+    # 송금 실행
+    sender.cash -= total_cost
+    receiver.cash += amount
+
+    log = Transfer(from_id=from_id, to_id=receiver.id, amount=amount, fee=amount * 0.05)
+    db.session.add(log)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"{receiver.username}에게 {int(amount):,}원 송금 완료",
+        "sent": round(total_cost, 2),
+        "received": round(amount, 2),
+        "fee": round(amount * 0.05, 2),
+        "cash": round(sender.cash, 2)
+    })
 
 # -------------------------
 # 게임 틱 함수들
