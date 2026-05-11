@@ -313,47 +313,6 @@
   .event-pos { background: rgba(34,197,94,0.15); color: var(--green); }
   .event-neg { background: rgba(239,68,68,0.15); color: var(--red); }
 
-  /* ── 서킷 브레이커 ── */
-  .stock-card.halted {
-    opacity: 0.55;
-    border-color: rgba(245,158,11,0.4) !important;
-    cursor: default;
-  }
-  .stock-card.halted:hover {
-    border-color: rgba(245,158,11,0.6) !important;
-    background: var(--bg2);
-  }
-  .halt-badge {
-    font-size: 11px; padding: 3px 8px; border-radius: 4px;
-    font-weight: 700; white-space: nowrap;
-    background: rgba(245,158,11,0.15); color: var(--amber);
-    animation: haltPulse 1.5s ease-in-out infinite;
-  }
-  @keyframes haltPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-  .halt-banner {
-    display: flex; align-items: center; gap: 10px;
-    background: rgba(245,158,11,0.1);
-    border: 1px solid rgba(245,158,11,0.35);
-    border-radius: var(--radius-sm);
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    font-size: 13px;
-  }
-  .halt-banner-icon { font-size: 20px; flex-shrink: 0; }
-  .halt-banner-text { flex: 1; line-height: 1.5; }
-  .halt-banner-text strong { color: var(--amber); display: block; font-size: 14px; }
-  .halt-banner-timer {
-    font-family: var(--font-mono); font-size: 22px; font-weight: 700;
-    color: var(--amber); flex-shrink: 0;
-  }
-  .btn-buy:disabled, .btn-sell:disabled {
-    opacity: 0.3; cursor: not-allowed;
-    pointer-events: none;
-  }
-
   /* ── RANKING ── */
   .rank-list { display: flex; flex-direction: column; gap: 8px; }
   .rank-item {
@@ -361,23 +320,34 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 12px 16px;
-    display: flex; align-items: center; gap: 12px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 0 12px;
   }
   .rank-num {
     font-family: var(--font-mono);
     font-size: 20px; font-weight: 700;
-    min-width: 32px; text-align: center;
+    text-align: center;
   }
   .rank-num.gold { color: #f59e0b; }
   .rank-num.silver { color: #94a3b8; }
   .rank-num.bronze { color: #b87f52; }
-  .rank-name { flex: 1; font-weight: 500; }
+  .rank-name {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0; /* grid에서 ellipsis 동작에 필요 */
+  }
   .rank-total {
     font-family: var(--font-mono);
     font-size: 14px; font-weight: 700;
     color: var(--cyan);
+    text-align: right;
+    white-space: nowrap;
   }
-  .rank-me { border-color: var(--accent) !important; }
+    .rank-me { border-color: var(--accent) !important; }
 
   /* ── DETAIL VIEW ── */
   .detail-wrap {
@@ -1147,26 +1117,18 @@ function renderStockGrid() {
     const chg = s.change_pct;
     const chgClass = chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'neu';
     const chgSign = chg > 0 ? '+' : '';
-
-    let badge = '';
-    if (s.halted) {
-      badge = `<span class="halt-badge">🚫 거래정지 ${s.halt_remaining}s</span>`;
-    } else if (s.has_event) {
-      badge = `<span class="event-badge event-${s.event_direction}">${s.event_direction === 'positive' ? '▲ 호재' : '▼ 악재'}</span>`;
-    }
-
-    const haltedClass = s.halted ? 'halted' : '';
-    const clickHandler = s.halted ? '' : `onclick="openDetail(${s.id})"`;
-
+    const eventBadge = s.has_event
+      ? `<span class="event-badge event-${s.event_direction}">${s.event_direction === 'positive' ? '▲ 호재' : '▼ 악재'}</span>`
+      : '';
     return `
-      <div class="stock-card ${haltedClass}" ${clickHandler}>
+      <div class="stock-card" onclick="openDetail(${s.id})">
         <div class="stock-icon" style="background:${color}22; color:${color}">${icon}</div>
         <div class="stock-info">
-          <div class="stock-name">${s.name} ${badge}</div>
+          <div class="stock-name">${s.name} ${eventBadge}</div>
           <div class="stock-desc">${s.description || ''}</div>
         </div>
         <div class="stock-right">
-          <div class="stock-price" style="color:${s.halted ? 'var(--amber)' : color}">${fmt(s.price)}원</div>
+          <div class="stock-price" style="color:${color}">${fmt(s.price)}원</div>
           <div class="stock-change ${chgClass}">${chgSign}${chg.toFixed(2)}%</div>
         </div>
       </div>`;
@@ -1236,7 +1198,6 @@ function backFromDetail() {
   }
   currentStock = null;
   if (priceChart) { priceChart.destroy(); priceChart = null; }
-  stopHaltCountdown();
 }
 
 // ── STOCK DETAIL ──
@@ -1273,101 +1234,28 @@ function updateDetailPrices() {
   const holding = (portfolio.stocks || []).find(h => h.stock_id === currentStock.id);
   document.getElementById('trade-holding').textContent = (holding ? holding.quantity : 0) + '주';
 
-  // 서킷 브레이커 배너
-  const existingBanner = document.getElementById('halt-banner');
-  if (existingBanner) existingBanner.remove();
-
-  const buyBtn  = document.querySelector('.btn-buy');
-  const sellBtn = document.querySelector('.btn-sell');
-
-  if (currentStock.halted && currentStock.halt_remaining > 0) {
-    const banner = document.createElement('div');
-    banner.id = 'halt-banner';
-    banner.className = 'halt-banner';
-    banner.innerHTML = `
-      <div class="halt-banner-icon">🚫</div>
-      <div class="halt-banner-text">
-        <strong>거래 일시 정지</strong>
-        급격한 가격 변동으로 서킷 브레이커 발동
-      </div>
-      <div class="halt-banner-timer" id="halt-countdown">${currentStock.halt_remaining}s</div>
-    `;
-    document.querySelector('.trade-panel').prepend(banner);
-    startHaltCountdown(currentStock.halt_remaining);
-    if (buyBtn)  buyBtn.disabled  = true;
-    if (sellBtn) sellBtn.disabled = true;
-  } else {
-    stopHaltCountdown();
-    if (buyBtn)  buyBtn.disabled  = false;
-    if (sellBtn) sellBtn.disabled = false;
-  }
-
   updateQtyDisplay();
 }
 
-let _haltTimer = null;
-
-function startHaltCountdown(seconds) {
-  stopHaltCountdown();
-  let remaining = seconds;
-  _haltTimer = setInterval(() => {
-    remaining--;
-    const el = document.getElementById('halt-countdown');
-    if (el) el.textContent = remaining + 's';
-    if (remaining <= 0) {
-      stopHaltCountdown();
-      // 정지 해제 시 배너 제거 + 버튼 복원
-      const banner = document.getElementById('halt-banner');
-      if (banner) banner.remove();
-      const buyBtn  = document.querySelector('.btn-buy');
-      const sellBtn = document.querySelector('.btn-sell');
-      if (buyBtn)  buyBtn.disabled  = false;
-      if (sellBtn) sellBtn.disabled = false;
-    }
-  }, 1000);
-}
-
-function stopHaltCountdown() {
-  if (_haltTimer) { clearInterval(_haltTimer); _haltTimer = null; }
-}
-
-// ──────────────────────────────────────────────
-// FIX 1: buildChart & updateChart
-// index.html 안의 기존 buildChart(), loadChart(), updateChart() 함수를
-// 아래 코드로 교체하세요.
-//
-// 변경 핵심:
-//   - priceChart.destroy() 후 canvas를 cloneNode로 교체
-//     → Chart.js 4.x에서 destroy 후 같은 canvas 재사용 시
-//       내부 컨텍스트가 오염되어 렌더가 안 되는 버그 수정
-//   - updateChart()에서 데이터가 없을 때도 차트를 지우지 않도록 guard 추가
-// ──────────────────────────────────────────────
-
 function buildChart(data) {
-  // 1) 이전 인스턴스 파괴
   if (priceChart) { priceChart.destroy(); priceChart = null; }
-
-  // 2) canvas를 새 노드로 교체 (컨텍스트 오염 방지 — Chart.js 4.x 핵심 수정)
-  const oldCanvas = document.getElementById('price-chart');
-  const newCanvas = oldCanvas.cloneNode(false);   // false = 자식 없이 복제
-  oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
 
   const prices = data.map(d => d.price);
   const labels = data.map(d => d.time);
-  const isUp = prices.length < 2 || prices[prices.length - 1] >= prices[0];
+  const isUp = prices.length < 2 || prices[prices.length-1] >= prices[0];
   const color = isUp ? '#22c55e' : '#ef4444';
 
   // 고점/저점 업데이트
   const high = Math.max(...prices);
   const low  = Math.min(...prices);
-  const highEl  = document.getElementById('chart-high');
-  const lowEl   = document.getElementById('chart-low');
+  const highEl = document.getElementById('chart-high');
+  const lowEl  = document.getElementById('chart-low');
   const rangeEl = document.getElementById('chart-range-label');
-  if (highEl)  highEl.textContent  = fmt(high) + '원';
-  if (lowEl)   lowEl.textContent   = fmt(low)  + '원';
+  if (highEl) highEl.textContent = fmt(high) + '원';
+  if (lowEl)  lowEl.textContent  = fmt(low)  + '원';
   if (rangeEl) rangeEl.textContent = `최근 ${prices.length}틱`;
 
-  const ctx = newCanvas.getContext('2d');
+  const ctx = document.getElementById('price-chart').getContext('2d');
 
   priceChart = new Chart(ctx, {
     type: 'line',
@@ -1395,11 +1283,8 @@ function buildChart(data) {
         x: { display: false },
         y: {
           grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: {
-            color: '#8888aa',
-            font: { family: 'Space Mono', size: 11 },
-            callback: v => fmt(v)
-          }
+          ticks: { color: '#8888aa', font: { family: 'Space Mono', size: 11 },
+            callback: v => fmt(v) }
         }
       }
     }
@@ -1408,22 +1293,19 @@ function buildChart(data) {
 
 async function loadChart(stockId) {
   try {
-    const res  = await fetch(API + `/history/${stockId}`);
+    const res = await fetch(API + `/history/${stockId}`);
     const data = await res.json();
-    if (!data.length) return;
     buildChart(data);
-  } catch (e) { console.error('loadChart error:', e); }
+  } catch(e) { console.error('loadChart error:', e); }
 }
 
-// 차트 데이터 갱신 (폴링 주기마다 호출)
-async function updateChart() {
-  if (!currentStock) return;
+// ── EARNINGS ──
+async function loadEarnings(stockId) {
   try {
-    const res  = await fetch(API + `/history/${currentStock.id}`);
+    const res = await fetch(API + `/earnings/${stockId}`);
     const data = await res.json();
-    if (!data.length) return;   // 데이터 없으면 기존 차트 유지 (기존엔 그냥 return이라 동일)
-    buildChart(data);
-  } catch (e) { console.error('updateChart error:', e); }
+    renderEarnings(data);
+  } catch(e) {}
 }
 
 function renderEarnings(data) {
@@ -1537,17 +1419,7 @@ async function executeTrade(action) {
       await fetchPortfolio();
       updateDetailPrices();
     } else {
-      if (data.halt_remaining) {
-        showToast(`🚫 거래 정지 중 — ${data.halt_remaining}초 후 재개`, 'error');
-        // 로컬 상태도 즉시 반영
-        if (currentStock) {
-          currentStock.halted = true;
-          currentStock.halt_remaining = data.halt_remaining;
-          updateDetailPrices();
-        }
-      } else {
-        showToast(data.error || '오류 발생', 'error');
-      }
+      showToast(data.error || '오류 발생', 'error');
     }
   } catch(e) {
     showToast('서버 오류', 'error');
