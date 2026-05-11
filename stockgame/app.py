@@ -136,6 +136,30 @@ def reset():
 
     return "게임 상태 초기화 완료"
 
+
+@app.route("/admin/delete_user", methods=["POST"])
+def delete_user():
+    username = request.json.get("username", "").strip()
+    if not username:
+        return jsonify({"error": "username 필요"}), 400
+
+    user = db.session.execute(
+        db.select(User).where(User.username == username)
+    ).scalar_one_or_none()
+
+    if not user:
+        return jsonify({"error": f"{username} 유저 없음"}), 404
+
+    # 연관 데이터 전부 삭제
+    db.session.execute(db.delete(Holding).where(Holding.user_id == user.id))
+    db.session.execute(db.delete(Transfer).where(
+        (Transfer.from_id == user.id) | (Transfer.to_id == user.id)
+    ))
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({"message": f"{username} 삭제 완료"})
+
 # -------------------------
 # 프론트엔드 서빙
 # -------------------------
