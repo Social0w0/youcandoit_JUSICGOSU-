@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Transfer
+from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Transfer, TradeLog
 import random
 from datetime import datetime
 
@@ -224,6 +224,10 @@ def get_stocks():
             db.select(Event).where(Event.stock_id == s.id, Event.duration > 0)
         ).scalars().all()
 
+        now = datetime.utcnow()
+        is_halted = bool(s.halt_until and s.halt_until > now)
+        halt_remain = int((s.halt_until - now).total_seconds()) if is_halted else 0
+
         result.append({
             "id": s.id,
             "name": s.name,
@@ -232,7 +236,9 @@ def get_stocks():
             "description": s.description,
             "change_pct": round(change_pct, 2),
             "has_event": len(active_events) > 0,
-            "event_direction": "positive" if active_events and active_events[0].impact > 0 else ("negative" if active_events else None)
+            "event_direction": "positive" if active_events and active_events[0].impact > 0 else ("negative" if active_events else None),
+            "is_halted": is_halted,
+            "halt_remain": halt_remain
         })
 
     return jsonify(result)
@@ -257,10 +263,26 @@ def buy():
     if not stock:
         return jsonify({"error": "주식을 찾을 수 없습니다"}), 404
 
+    # 서킷브레이커 체크
+    now = datetime.utcnow()
+    if stock.halt_until and stock.halt_until > now:
+        remain = int((stock.halt_until - now).total_seconds())
+        return jsonify({"error": f"⚠️ 거래정지 중입니다. {remain}초 후 거래 가능합니다"}), 423
+
     cost = stock.price * qty
 
     if user.cash < cost:
         return jsonify({"error": f"잔액 부족 (필요: {cost:.0f}원, 보유: {user.cash:.0f}원)"}), 400
+
+    # 반복 거래 페널티 계산
+    from datetime import timedelta
+    recent_trades = db.session.execute(
+        db.select(TradeLog)
+        .where(TradeLog.user_id == user_id, TradeLog.stock_id == stock_id,
+               TradeLog.created_at >= now - timedelta(seconds=30))
+        .order_by(TradeLog.created_at.desc())
+    ).scalars().all()
+    repeat_count = len(recent_trades)
 
     user.cash -= cost
 
@@ -269,7 +291,6 @@ def buy():
     ).scalar_one_or_none()
 
     if holding:
-        # 평균매수가 재계산: (기존총액 + 새구매액) / 새총수량
         total_cost_prev = holding.avg_price * holding.quantity
         holding.avg_price = (total_cost_prev + cost) / (holding.quantity + qty)
         holding.quantity += qty
@@ -277,9 +298,22 @@ def buy():
         holding = Holding(user_id=user_id, stock_id=stock_id, quantity=qty, avg_price=stock.price)
         db.session.add(holding)
 
+    # 시장 영향: 매수 → 주가 상승 압력
+    # 기본 임팩트 + 반복 거래 페널티
+    base_impact = (qty / 100) * 0.005   # 100주당 0.5% 임팩트
+    repeat_penalty = repeat_count * 0.003  # 반복할수록 임팩트 증가
+    stock.market_impact += base_impact + repeat_penalty
+
+    # 거래 기록
+    log = TradeLog(user_id=user_id, stock_id=stock_id, action='buy', quantity=qty, price=stock.price)
+    db.session.add(log)
+
     db.session.commit()
+    msg = f"{stock.name} {qty}주 매수 완료"
+    if repeat_count > 0:
+        msg += f" (반복거래 {repeat_count}회 - 시장 영향 증가)"
     return jsonify({
-        "message": f"{stock.name} {qty}주 매수 완료",
+        "message": msg,
         "cash": round(user.cash, 2),
         "total_cost": round(cost, 2)
     })
@@ -304,6 +338,12 @@ def sell():
     if not stock:
         return jsonify({"error": "주식을 찾을 수 없습니다"}), 404
 
+# 서킷브레이커 체크
+    now = datetime.utcnow()
+    if stock.halt_until and stock.halt_until > now:
+        remain = int((stock.halt_until - now).total_seconds())
+        return jsonify({"error": f"⚠️ 거래정지 중입니다. {remain}초 후 거래 가능합니다"}), 423
+
     holding = db.session.execute(
         db.select(Holding).where(Holding.user_id == user_id, Holding.stock_id == stock_id)
     ).scalar_one_or_none()
@@ -312,6 +352,16 @@ def sell():
         current_qty = holding.quantity if holding else 0
         return jsonify({"error": f"보유 주식 부족 (보유: {current_qty}주)"}), 400
 
+    # 반복 거래 페널티 계산
+    from datetime import timedelta
+    recent_trades = db.session.execute(
+        db.select(TradeLog)
+        .where(TradeLog.user_id == user_id, TradeLog.stock_id == stock_id,
+               TradeLog.created_at >= now - timedelta(seconds=30))
+        .order_by(TradeLog.created_at.desc())
+    ).scalars().all()
+    repeat_count = len(recent_trades)
+
     revenue = stock.price * qty
     holding.quantity -= qty
     user.cash += revenue
@@ -319,9 +369,21 @@ def sell():
     if holding.quantity == 0:
         db.session.delete(holding)
 
+    # 시장 영향: 매도 → 주가 하락 압력
+    base_impact = -(qty / 100) * 0.005
+    repeat_penalty = -(repeat_count * 0.003)
+    stock.market_impact += base_impact + repeat_penalty
+
+    # 거래 기록
+    log = TradeLog(user_id=user_id, stock_id=stock_id, action='sell', quantity=qty, price=stock.price)
+    db.session.add(log)
+
     db.session.commit()
+    msg = f"{stock.name} {qty}주 매도 완료"
+    if repeat_count > 0:
+        msg += f" (반복거래 {repeat_count}회 - 시장 영향 증가)"
     return jsonify({
-        "message": f"{stock.name} {qty}주 매도 완료",
+        "message": msg,
         "cash": round(user.cash, 2),
         "revenue": round(revenue, 2)
     })
@@ -565,7 +627,7 @@ def transfer():
         now = datetime.utcnow()
         elapsed = (now - last_transfer.created_at).total_seconds()
         # 쿨타임: 기본 60초 + 금액 1000원당 10초 추가 (최대 10분)
-        cooldown = min(60 + (last_transfer.amount / 1000) * 10, 600)
+        cooldown = min(60 + (last_transfer.amount / 1000), 600)
         if elapsed < cooldown:
             remain = int(cooldown - elapsed)
             return jsonify({"error": f"쿨타임 중입니다. {remain}초 후 다시 시도하세요"}), 429
@@ -591,8 +653,18 @@ def transfer():
 # -------------------------
 def update_stock_prices():
     stocks = db.session.execute(db.select(Stock)).scalars().all()
+    now = datetime.utcnow()
 
     for s in stocks:
+        # 직전 가격 조회
+        prev_hist = db.session.execute(
+            db.select(PriceHistory)
+            .where(PriceHistory.stock_id == s.id)
+            .order_by(PriceHistory.timestamp.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        prev_price = prev_hist.price if prev_hist else s.price
+
         # 기본 랜덤 변동 (-3% ~ +3%)
         change = random.uniform(-0.03, 0.03)
 
@@ -602,14 +674,31 @@ def update_stock_prices():
         ).scalars().all()
 
         for e in events:
-            change += e.impact * 0.5  # 이벤트 영향 누적
+            change += e.impact * 0.5
             e.duration -= 1
             if e.duration <= 0:
                 db.session.delete(e)
 
-        s.price = max(10, s.price * (1 + change))  # 최소가격 10원
+        # 시장 충격 임팩트 적용 (매수/매도로 누적된 값)
+        if s.market_impact != 0:
+            change += s.market_impact
+            s.market_impact *= 0.5  # 충격 감쇠 (매 틱마다 절반씩 줄어듦)
+            if abs(s.market_impact) < 0.001:
+                s.market_impact = 0
 
-        # 히스토리 저장
+        new_price = max(10, s.price * (1 + change))
+        actual_change_pct = abs((new_price - prev_price) / prev_price * 100) if prev_price else 0
+
+        # 서킷브레이커: 5% 이상 변동 시 거래 정지
+        if actual_change_pct >= 5.0 and (s.halt_until is None or s.halt_until < now):
+            halt_seconds = int(actual_change_pct * 6)  # 5%→30초, 10%→60초, 20%→120초
+            s.halt_until = datetime.utcnow().replace(microsecond=0)
+            from datetime import timedelta
+            s.halt_until = datetime.utcnow() + timedelta(seconds=halt_seconds)
+            print(f"[HALT] {s.name} 거래정지 {halt_seconds}초 (변동: {actual_change_pct:.1f}%)")
+
+        s.price = new_price
+
         history = PriceHistory(stock_id=s.id, price=s.price)
         db.session.add(history)
 
