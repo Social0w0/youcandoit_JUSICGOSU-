@@ -83,7 +83,9 @@ with app.app_context():
         dict(name="카카오",             ticker="035720", price=800,  description="국내 최대 모바일 플랫폼 기업"),
         dict(name="네이버",             ticker="035420", price=1200, description="검색·커머스·핀테크 종합 플랫폼"),
         dict(name="가천대",             ticker="GCU",    price=1200, description="주식도둑의 본거지"),
-        dict(name="윤상현컴퍼니",       ticker="YSH",    price=3000, description="가천대주식도둑 소유 회사"),
+        dict(name="윤상현레버리지연구소",       ticker="YSH",    price=3000, description="마침내! 사업의 방향성을 굳힌 기업입니다."),
+        dict(name="개잡주전문주식회사",       ticker="GJJ",    price=30000, description="다양한 주식을 취급하는 윤상현연구소 소속 회사"),
+        dict(name="김경주모아이석상발굴사업",       ticker="GMI",    price=25000, description="대체 어째서 모아이 석상을 발굴하는거죠??"),
         dict(name="연우신무역회사",       ticker="YSM",    price=3300, description="떡상 가능성조차 불분명한 의문의 기업"),
         dict(name="승리트릭컬주식회사", ticker="STK",    price=1000, description="수상할 정도로 대뾴니가 많은 기업"),
         dict(name="고한민성장촉진주식회사", ticker="KSJ",    price=5000, description="모두의 평균을 높이는 유망주 기업"),
@@ -92,18 +94,23 @@ with app.app_context():
         dict(name="X", ticker="GHM",    price=1000000, description="화성갈끄니까~"),               
     ]
 
-    existing_names = {s.name for s in db.session.execute(db.select(Stock)).scalars().all()}
+    existing = {s.ticker: s for s in db.session.execute(db.select(Stock)).scalars().all()}
 
     for s_data in STOCK_LIST:
-        if s_data["name"] not in existing_names:
+        if s_data["ticker"] in existing:
+            # 기존 종목 - 이름/설명 갱신
+            existing[s_data["ticker"]].name = s_data["name"]
+            existing[s_data["ticker"]].description = s_data["description"]
+        else:
+        # 새 종목 추가
             new_stock = Stock(**s_data)
             db.session.add(new_stock)
-            db.session.flush()  # id 확보
+            db.session.flush()
             h = PriceHistory(stock_id=new_stock.id, price=new_stock.price)
             db.session.add(h)
             print(f"[INIT] 새 종목 추가: {s_data['name']}")
 
-    db.session.commit()
+db.session.commit()
 
 @app.route("/admin/reset")
 def reset():
