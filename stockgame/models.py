@@ -76,3 +76,122 @@ class TradeLog(db.Model):
 
     market_impact = db.Column(db.Float, default=0.0)   # 시장 영향 누적
     halt_until = db.Column(db.DateTime, nullable=True) # 거래 정지 시간
+
+
+# ── 칭호 / 배경 시스템 ──────────────────────────────────────────────
+
+# 칭호 정의 테이블 (앱 초기화 시 seed_titles()로 DB에 삽입)
+# condition_type: 'asset' (총 자산 기준)
+# condition_value: 해당 타입의 임계값 (원 단위)
+class Title(db.Model):
+    id             = db.Column(db.Integer, primary_key=True)
+    name           = db.Column(db.String(30), nullable=False)   # "억만장자"
+    emoji          = db.Column(db.String(10), nullable=False)   # "💰"
+    description    = db.Column(db.String(100))                  # "총 자산 1억 원 돌파"
+    condition_type = db.Column(db.String(20), nullable=False)   # "asset"
+    condition_value= db.Column(db.Float, nullable=False)        # 100_000_000
+    color          = db.Column(db.String(20), nullable=False)   # CSS 색상값 (예: "#f59e0b")
+    sort_order     = db.Column(db.Integer, default=0)           # 표시 순서 (낮을수록 먼저)
+
+
+# 유저 프로필 테이블 (1유저 1행)
+# unlocked_title_ids: 쉼표로 구분된 Title.id 문자열 (예: "1,2,3")
+#   → JSON 컬럼 대신 String을 사용해 SQLite 호환성 유지
+# equipped_title_id : 현재 장착 중인 Title.id (없으면 NULL)
+# equipped_bg       : 현재 장착 중인 배경 키 (예: "default", "purple", "gold")
+class UserProfile(db.Model):
+    id                 = db.Column(db.Integer, primary_key=True)
+    user_id            = db.Column(db.Integer, db.ForeignKey('user.id'),
+                                   nullable=False, unique=True)
+    unlocked_title_ids = db.Column(db.String(200), default='1')  # 새싹(id=1)은 기본 지급
+    equipped_title_id  = db.Column(db.Integer, db.ForeignKey('title.id'), nullable=True)
+    equipped_bg        = db.Column(db.String(30), default='default')
+    updated_at         = db.Column(db.DateTime, default=datetime.utcnow,
+                                   onupdate=datetime.utcnow)
+
+
+# ── 칭호 초기 데이터 (app.py의 create_tables() 안에서 호출) ─────────
+TITLE_SEEDS = [
+    {
+        'id': 1,
+        'name': '새싹 투자자',
+        'emoji': '🌱',
+        'description': '주식고수에 첫 발을 내딛었습니다',
+        'condition_type': 'asset',
+        'condition_value': 0,          # 가입 즉시 지급
+        'color': '#8888aa',
+        'sort_order': 1,
+    },
+    {
+        'id': 2,
+        'name': '억만장자',
+        'emoji': '💰',
+        'description': '총 자산 1억 원 돌파',
+        'condition_type': 'asset',
+        'condition_value': 100_000_000,
+        'color': '#f59e0b',
+        'sort_order': 2,
+    },
+    {
+        'id': 3,
+        'name': '다이아 투자자',
+        'emoji': '💎',
+        'description': '총 자산 10억 원 돌파',
+        'condition_type': 'asset',
+        'condition_value': 1_000_000_000,
+        'color': '#06b6d4',
+        'sort_order': 3,
+    },
+    {
+        'id': 4,
+        'name': '전설의 고수',
+        'emoji': '👑',
+        'description': '총 자산 1조 원 돌파',
+        'condition_type': 'asset',
+        'condition_value': 1_000_000_000_000,
+        'color': '#a855f7',
+        'sort_order': 4,
+    },
+]
+
+def seed_titles():
+    """앱 시작 시 Title 테이블에 초기 데이터가 없으면 삽입."""
+    if Title.query.count() == 0:
+        for data in TITLE_SEEDS:
+            db.session.add(Title(**data))
+        db.session.commit()
+
+
+# ── 칭호 자동 지급 헬퍼 (app.py의 매수/매도/포트폴리오 API에서 호출) ─
+def check_and_unlock_titles(user_id: int, total_asset: float):
+    """
+    total_asset 기준으로 조건을 충족하는 칭호를 자동 지급한다.
+    새로 지급된 칭호 목록(Title 객체 리스트)을 반환한다.
+    """
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        # 프로필이 아직 없으면 생성 (새싹은 기본 포함)
+        profile = UserProfile(user_id=user_id, unlocked_title_ids='1')
+        db.session.add(profile)
+        db.session.flush()
+
+    unlocked = set(
+        int(x) for x in profile.unlocked_title_ids.split(',') if x.strip()
+    )
+
+    eligible = Title.query.filter(
+        Title.condition_type == 'asset',
+        Title.condition_value <= total_asset
+    ).all()
+
+    newly_unlocked = []
+    for title in eligible:
+        if title.id not in unlocked:
+            unlocked.add(title.id)
+            newly_unlocked.append(title)
+
+    if newly_unlocked:
+        profile.unlocked_title_ids = ','.join(str(i) for i in sorted(unlocked))
+        db.session.commit()
+
+    return newly_unlocked
