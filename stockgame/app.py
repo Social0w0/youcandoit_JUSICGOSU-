@@ -78,6 +78,28 @@ with app.app_context():
             conn.commit()
         print("[MIGRATION] password 컬럼 추가 완료")
 
+    # BigInteger 마이그레이션 (Integer overflow 방지)
+    # holding.quantity, earnings.(revenue/operating/net), tradelog.quantity → BIGINT
+    _bigint_migrations = [
+        ('holding',  'quantity',  'ALTER TABLE holding  ALTER COLUMN quantity  TYPE BIGINT'),
+        ('earnings', 'revenue',   'ALTER TABLE earnings ALTER COLUMN revenue   TYPE BIGINT'),
+        ('earnings', 'operating', 'ALTER TABLE earnings ALTER COLUMN operating TYPE BIGINT'),
+        ('earnings', 'net',       'ALTER TABLE earnings ALTER COLUMN net       TYPE BIGINT'),
+        ('tradelog', 'quantity',  'ALTER TABLE tradelog ALTER COLUMN quantity  TYPE BIGINT'),
+    ]
+    for table, col, sql in _bigint_migrations:
+        try:
+            cols = {c['name']: c for c in inspector.get_columns(table)}
+            if col in cols:
+                col_type = str(cols[col]['type'])
+                if 'BIGINT' not in col_type.upper():
+                    with db.engine.connect() as conn:
+                        conn.execute(text(sql))
+                        conn.commit()
+                    print(f"[MIGRATION] {table}.{col} → BIGINT 완료")
+        except Exception as e:
+            print(f"[MIGRATION SKIP] {table}.{col}: {e}")
+
     # 종목 목록 - 새 종목은 여기에 추가하면 자동으로 DB에 반영됨
     STOCK_LIST = [
         dict(name="오성전자",           ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
@@ -254,7 +276,7 @@ def get_stocks():
             db.select(Event).where(Event.stock_id == s.id, Event.duration > 0)
         ).scalars().all()
 
-            halt_remaining = check_circuit_breaker(s.id)
+        halt_remaining = check_circuit_breaker(s.id)
 
         result.append({
             "id": s.id,
@@ -280,8 +302,15 @@ def buy():
     stock_id = request.json.get("stock_id")
     qty = request.json.get("quantity", 1)
 
+    try:
+        qty = int(qty)
+    except (TypeError, ValueError):
+        return jsonify({"error": "수량이 올바르지 않습니다"}), 400
+
     if qty <= 0:
         return jsonify({"error": "수량은 1 이상이어야 합니다"}), 400
+    if qty > 1_000_000_000:
+        return jsonify({"error": "한 번에 최대 10억 주까지 주문 가능합니다"}), 400
 
     if not stock_id or not user_id:
         return jsonify({"error": "user_id, stock_id 필요"}), 400
@@ -340,8 +369,15 @@ def sell():
     stock_id = request.json.get("stock_id")
     qty = request.json.get("quantity", 1)
 
+    try:
+        qty = int(qty)
+    except (TypeError, ValueError):
+        return jsonify({"error": "수량이 올바르지 않습니다"}), 400
+
     if qty <= 0:
         return jsonify({"error": "수량은 1 이상이어야 합니다"}), 400
+    if qty > 1_000_000_000:
+        return jsonify({"error": "한 번에 최대 10억 주까지 주문 가능합니다"}), 400
 
     if not stock_id or not user_id:
         return jsonify({"error": "user_id, stock_id 필요"}), 400

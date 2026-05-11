@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from sqlalchemy import BigInteger
 
 db = SQLAlchemy()
 
@@ -22,8 +23,8 @@ class Holding(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)
-    quantity = db.Column(db.Integer, default=0)
-    avg_price = db.Column(db.Float, default=0)  # 평균 매수가
+    quantity = db.Column(BigInteger, default=0)   # Integer → BigInteger (overflow 방지)
+    avg_price = db.Column(db.Float, default=0)    # 평균 매수가
 
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -52,9 +53,9 @@ class Earnings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)
     quarter = db.Column(db.String(20))       # "2025 3Q"
-    revenue = db.Column(db.Integer)           # 매출 (억원)
-    operating = db.Column(db.Integer)         # 영업이익
-    net = db.Column(db.Integer)               # 순이익
+    revenue = db.Column(BigInteger)           # 매출 (억원) — BigInteger (overflow 방지)
+    operating = db.Column(BigInteger)         # 영업이익
+    net = db.Column(BigInteger)               # 순이익
     rev_chg = db.Column(db.Float)            # 전분기 대비 매출 증감률
     op_chg = db.Column(db.Float)             # 영업이익 증감률
     net_chg = db.Column(db.Float)            # 순이익 증감률
@@ -68,10 +69,10 @@ class TradeLog(db.Model):
     stock_id = db.Column(db.Integer, nullable=False)
 
     action = db.Column(db.String(10))  # 'buy' or 'sell'
-    quantity = db.Column(db.Integer)
+    quantity = db.Column(BigInteger)   # BigInteger
     price = db.Column(db.Float)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     market_impact = db.Column(db.Float, default=0.0)   # 시장 영향 누적
     halt_until = db.Column(db.DateTime, nullable=True) # 거래 정지 시간
