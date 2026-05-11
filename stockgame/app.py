@@ -232,44 +232,7 @@ def login():
 
 # -------------------------
 # 주식 목록
-# 가격 히스토리
-# -------------------------
-@app.route("/stocks")
-def get_stocks():
-    stocks = db.session.execute(db.select(Stock)).scalars().all()
-    result = []
-    for s in stocks:
-        histories = db.session.execute(
-            db.select(PriceHistory)
-            .where(PriceHistory.stock_id == s.id)
-            .order_by(PriceHistory.timestamp.desc())
-            .limit(2)
-        ).scalars().all()
 
-        prev_price = histories[1].price if len(histories) >= 2 else s.price
-        change_pct = ((s.price - prev_price) / prev_price * 100) if prev_price else 0
-
-        active_events = db.session.execute(
-            db.select(Event).where(Event.stock_id == s.id, Event.duration > 0)
-        ).scalars().all()
-
-        # 서킷 브레이커 상태
-        halt_remaining = check_circuit_breaker(s.id)
-
-        result.append({
-            "id": s.id,
-            "name": s.name,
-            "ticker": s.ticker,
-            "price": round(s.price, 2),
-            "description": s.description,
-            "change_pct": round(change_pct, 2),
-            "has_event": len(active_events) > 0,
-            "event_direction": "positive" if active_events and active_events[0].impact > 0 else ("negative" if active_events else None),
-            "halted": halt_remaining is not None,
-            "halt_remaining": halt_remaining
-        })
-
-    return jsonify(result)
 
 
 # -------------------------
@@ -425,6 +388,46 @@ def portfolio(user_id):
         "stocks": result,
         "total": round(total, 2)
     })
+
+# -------------------------
+# 가격 히스토리
+# -------------------------
+@app.route("/stocks")
+def get_stocks():
+    stocks = db.session.execute(db.select(Stock)).scalars().all()
+    result = []
+    for s in stocks:
+        histories = db.session.execute(
+            db.select(PriceHistory)
+            .where(PriceHistory.stock_id == s.id)
+            .order_by(PriceHistory.timestamp.desc())
+            .limit(2)
+        ).scalars().all()
+
+        prev_price = histories[1].price if len(histories) >= 2 else s.price
+        change_pct = ((s.price - prev_price) / prev_price * 100) if prev_price else 0
+
+        active_events = db.session.execute(
+            db.select(Event).where(Event.stock_id == s.id, Event.duration > 0)
+        ).scalars().all()
+
+        # 서킷 브레이커 상태
+        halt_remaining = check_circuit_breaker(s.id)
+
+        result.append({
+            "id": s.id,
+            "name": s.name,
+            "ticker": s.ticker,
+            "price": round(s.price, 2),
+            "description": s.description,
+            "change_pct": round(change_pct, 2),
+            "has_event": len(active_events) > 0,
+            "event_direction": "positive" if active_events and active_events[0].impact > 0 else ("negative" if active_events else None),
+            "halted": halt_remaining is not None,
+            "halt_remaining": halt_remaining
+        })
+
+    return jsonify(result)
 
 
 # -------------------------
