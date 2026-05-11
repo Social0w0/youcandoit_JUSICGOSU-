@@ -1331,25 +1331,43 @@ function stopHaltCountdown() {
   if (_haltTimer) { clearInterval(_haltTimer); _haltTimer = null; }
 }
 
+// ──────────────────────────────────────────────
+// FIX 1: buildChart & updateChart
+// index.html 안의 기존 buildChart(), loadChart(), updateChart() 함수를
+// 아래 코드로 교체하세요.
+//
+// 변경 핵심:
+//   - priceChart.destroy() 후 canvas를 cloneNode로 교체
+//     → Chart.js 4.x에서 destroy 후 같은 canvas 재사용 시
+//       내부 컨텍스트가 오염되어 렌더가 안 되는 버그 수정
+//   - updateChart()에서 데이터가 없을 때도 차트를 지우지 않도록 guard 추가
+// ──────────────────────────────────────────────
+
 function buildChart(data) {
+  // 1) 이전 인스턴스 파괴
   if (priceChart) { priceChart.destroy(); priceChart = null; }
+
+  // 2) canvas를 새 노드로 교체 (컨텍스트 오염 방지 — Chart.js 4.x 핵심 수정)
+  const oldCanvas = document.getElementById('price-chart');
+  const newCanvas = oldCanvas.cloneNode(false);   // false = 자식 없이 복제
+  oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
 
   const prices = data.map(d => d.price);
   const labels = data.map(d => d.time);
-  const isUp = prices.length < 2 || prices[prices.length-1] >= prices[0];
+  const isUp = prices.length < 2 || prices[prices.length - 1] >= prices[0];
   const color = isUp ? '#22c55e' : '#ef4444';
 
   // 고점/저점 업데이트
   const high = Math.max(...prices);
   const low  = Math.min(...prices);
-  const highEl = document.getElementById('chart-high');
-  const lowEl  = document.getElementById('chart-low');
+  const highEl  = document.getElementById('chart-high');
+  const lowEl   = document.getElementById('chart-low');
   const rangeEl = document.getElementById('chart-range-label');
-  if (highEl) highEl.textContent = fmt(high) + '원';
-  if (lowEl)  lowEl.textContent  = fmt(low)  + '원';
+  if (highEl)  highEl.textContent  = fmt(high) + '원';
+  if (lowEl)   lowEl.textContent   = fmt(low)  + '원';
   if (rangeEl) rangeEl.textContent = `최근 ${prices.length}틱`;
 
-  const ctx = document.getElementById('price-chart').getContext('2d');
+  const ctx = newCanvas.getContext('2d');
 
   priceChart = new Chart(ctx, {
     type: 'line',
@@ -1377,8 +1395,11 @@ function buildChart(data) {
         x: { display: false },
         y: {
           grid: { color: 'rgba(255,255,255,0.05)' },
-          ticks: { color: '#8888aa', font: { family: 'Space Mono', size: 11 },
-            callback: v => fmt(v) }
+          ticks: {
+            color: '#8888aa',
+            font: { family: 'Space Mono', size: 11 },
+            callback: v => fmt(v)
+          }
         }
       }
     }
@@ -1387,19 +1408,22 @@ function buildChart(data) {
 
 async function loadChart(stockId) {
   try {
-    const res = await fetch(API + `/history/${stockId}`);
+    const res  = await fetch(API + `/history/${stockId}`);
     const data = await res.json();
+    if (!data.length) return;
     buildChart(data);
-  } catch(e) { console.error('loadChart error:', e); }
+  } catch (e) { console.error('loadChart error:', e); }
 }
 
-// ── EARNINGS ──
-async function loadEarnings(stockId) {
+// 차트 데이터 갱신 (폴링 주기마다 호출)
+async function updateChart() {
+  if (!currentStock) return;
   try {
-    const res = await fetch(API + `/earnings/${stockId}`);
+    const res  = await fetch(API + `/history/${currentStock.id}`);
     const data = await res.json();
-    renderEarnings(data);
-  } catch(e) {}
+    if (!data.length) return;   // 데이터 없으면 기존 차트 유지 (기존엔 그냥 return이라 동일)
+    buildChart(data);
+  } catch (e) { console.error('updateChart error:', e); }
 }
 
 function renderEarnings(data) {

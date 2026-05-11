@@ -703,67 +703,74 @@ def admin_unlock_circuit_breaker():
 # 게임 틱 함수들
 # -------------------------
 _tick_counter = 0
-
+ 
 def update_stock_prices():
     global _tick_counter
     _tick_counter += 1
-
+ 
     stocks = db.session.execute(db.select(Stock)).scalars().all()
-
+ 
     all_events = db.session.execute(
         db.select(Event).where(Event.duration > 0)
     ).scalars().all()
     events_by_stock = {}
     for e in all_events:
         events_by_stock.setdefault(e.stock_id, []).append(e)
-
+ 
     new_histories = []
     for s in stocks:
         prev_price = s.price  # 변동률 계산용
-        
+ 
         change = random.uniform(-0.03, 0.03)
-
+ 
         for e in events_by_stock.get(s.id, []):
             change += e.impact * 0.5
             e.duration -= 1
             if e.duration <= 0:
                 e.duration = 0
-
+ 
         s.price = max(10, s.price * (1 + change))
         new_histories.append(PriceHistory(stock_id=s.id, price=s.price))
-        
+ 
         # 서킷 브레이커 체크
         change_pct = ((s.price - prev_price) / prev_price * 100) if prev_price else 0
         halt = trigger_circuit_breaker(s.id, change_pct)
         if halt:
             print(f"[CIRCUIT BREAKER] {s.name}: {change_pct:+.2f}% 변동 → {halt}초 거래 정지")
-
+ 
     db.session.bulk_save_objects(new_histories)
-
+ 
     # 60틱마다 오래된 PriceHistory 정리 (종목당 최근 360개만 유지)
     if _tick_counter % 60 == 0:
-        from sqlalchemy import text
+ 
+        # [FIX 2] count > 360 일 때만 삭제 — NOT IN 서브쿼리 전체삭제 버그 방지
         for s in stocks:
-            subq = (
-                db.select(PriceHistory.id)
+            count = db.session.execute(
+                db.select(db.func.count(PriceHistory.id))
                 .where(PriceHistory.stock_id == s.id)
-                .order_by(PriceHistory.timestamp.desc())
-                .limit(360)
-                .subquery()
-            )
-            db.session.execute(
-                db.delete(PriceHistory)
-                .where(PriceHistory.stock_id == s.id)
-                .where(PriceHistory.id.notin_(db.select(subq.c.id)))
-            )
-        if _tick_counter % 60 == 0:
-        # 오래된 이벤트 정리 (24시간 이상 된 것만)
-            from datetime import timedelta
-            cutoff = datetime.utcnow() - timedelta(hours=24)
-            db.session.execute(
-                db.delete(Event).where(Event.created_at < cutoff)
-            )
-
+            ).scalar()
+ 
+            if count > 360:
+                subq = (
+                    db.select(PriceHistory.id)
+                    .where(PriceHistory.stock_id == s.id)
+                    .order_by(PriceHistory.timestamp.desc())
+                    .limit(360)
+                    .subquery()
+                )
+                db.session.execute(
+                    db.delete(PriceHistory)
+                    .where(PriceHistory.stock_id == s.id)
+                    .where(PriceHistory.id.notin_(db.select(subq.c.id)))
+                )
+ 
+        # [FIX 3] 중복 if 제거 — 이벤트 정리를 같은 레벨에서 처리
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(hours=24)
+        db.session.execute(
+            db.delete(Event).where(Event.created_at < cutoff)
+        )
+ 
     db.session.commit()
 
 from datetime import timedelta
