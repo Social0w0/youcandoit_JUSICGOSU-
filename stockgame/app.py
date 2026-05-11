@@ -110,7 +110,7 @@ with app.app_context():
             db.session.add(h)
             print(f"[INIT] 새 종목 추가: {s_data['name']}")
 
-db.session.commit()
+    db.session.commit()
 
 @app.route("/admin/reset")
 def reset():
@@ -632,7 +632,7 @@ def update_stock_prices():
             change += e.impact * 0.5
             e.duration -= 1
             if e.duration <= 0:
-                db.session.delete(e)
+                e.duration = 0  # 삭제 대신 0으로 유지 (뉴스 기록 보존)
 
         s.price = max(10, s.price * (1 + change))
         new_histories.append(PriceHistory(stock_id=s.id, price=s.price))
@@ -654,6 +654,13 @@ def update_stock_prices():
                 db.delete(PriceHistory)
                 .where(PriceHistory.stock_id == s.id)
                 .where(PriceHistory.id.notin_(db.select(subq.c.id)))
+            )
+        if _tick_counter % 60 == 0:
+        # 오래된 이벤트 정리 (24시간 이상 된 것만)
+            from datetime import timedelta
+            cutoff = datetime.utcnow() - timedelta(hours=24)
+            db.session.execute(
+                db.delete(Event).where(Event.created_at < cutoff)
             )
 
     db.session.commit()
