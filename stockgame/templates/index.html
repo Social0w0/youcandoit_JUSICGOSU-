@@ -54,7 +54,14 @@
     pointer-events: none;
     z-index: 0;
   }
-
+  .asset-value {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  
+    .asset-value {
+      max-width: 100%;
+    }}
+  
   /* ── VIEWS ── */
   .view { display: none; position: relative; z-index: 1; }
   .view.active { display: block; }
@@ -695,7 +702,7 @@
               background:rgba(124,110,255,0.15); border:1px solid rgba(124,110,255,0.3);
               color:var(--accent); font-family:var(--font-body); font-size:13px;
               padding:7px 14px; border-radius:var(--radius-sm); cursor:pointer;
-              transition:all 0.2s; white-space:nowrap; margin-top:4px;
+              transition:all 0.2s; white-space: normal; margin-top:4px;
             ">💸 송금</button>
           </div>
           <div class="asset-grid">
@@ -1042,7 +1049,12 @@ function toggleNews() {
 }
 
 // ── RENDER ──
-function fmt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+function fmt(n) {
+  if (n >= 1_0000_0000_0000) return (n / 1_0000_0000_0000).toFixed(1) + "조";
+  if (n >= 1_0000_0000) return (n / 1_0000_0000).toFixed(1) + "억";
+  if (n >= 10000) return (n / 10000).toFixed(1) + "만";
+  return Math.round(n).toLocaleString('ko-KR');
+}
 
 function renderPortfolio() {
   if (!portfolio || portfolio.error) return;

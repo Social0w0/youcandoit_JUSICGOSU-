@@ -60,3 +60,18 @@ class Earnings(db.Model):
     net_chg = db.Column(db.Float)            # 순이익 증감률
     beat = db.Column(db.String(20))          # "▲ 예상치 상회" or "▼ 예상치 하회"
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class TradeLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(db.Integer, nullable=False)
+    stock_id = db.Column(db.Integer, nullable=False)
+
+    action = db.Column(db.String(10))  # 'buy' or 'sell'
+    quantity = db.Column(db.Integer)
+    price = db.Column(db.Float)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    market_impact = db.Column(db.Float, default=0.0)   # 시장 영향 누적
+    halt_until = db.Column(db.DateTime, nullable=True) # 거래 정지 시간
