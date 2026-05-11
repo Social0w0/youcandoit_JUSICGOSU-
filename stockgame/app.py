@@ -6,14 +6,10 @@ from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-#커밋확인용
-app = Flask(__name__)
-CORS(app)
 import os
 
 app = Flask(__name__)
 CORS(app)
-import os
 
 db_url = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
 
@@ -396,23 +392,19 @@ def history(stock_id):
 @app.route("/ranking")
 def ranking():
     users = db.session.execute(db.select(User)).scalars().all()
-    ranking_list = []
+    stocks_map = {s.id: s.price for s in db.session.execute(db.select(Stock)).scalars().all()}
+    holdings_all = db.session.execute(db.select(Holding)).scalars().all()
 
-    for u in users:
-        holdings = db.session.execute(
-            db.select(Holding).where(Holding.user_id == u.id)
-        ).scalars().all()
-        total = u.cash
+    stock_values = {}
+    for h in holdings_all:
+        price = stocks_map.get(h.stock_id, 0)
+        stock_values[h.user_id] = stock_values.get(h.user_id, 0) + price * h.quantity
 
-        for h in holdings:
-            stock = db.session.get(Stock, h.stock_id)
-            total += stock.price * h.quantity
-
-        ranking_list.append({
-            "username": u.username,
-            "total": round(total, 2),
-            "cash": round(u.cash, 2)
-        })
+    ranking_list = [{
+        "username": u.username,
+        "total": round(u.cash + stock_values.get(u.id, 0), 2),
+        "cash": round(u.cash, 2)
+    } for u in users]
 
     ranking_list.sort(key=lambda x: x["total"], reverse=True)
     return jsonify(ranking_list)
@@ -446,26 +438,22 @@ def get_earnings(stock_id):
 # -------------------------
 @app.route("/events/recent")
 def get_recent_events():
-    events = db.session.execute(
-        db.select(Event)
+    rows = db.session.execute(
+        db.select(Event, Stock)
+        .join(Stock, Stock.id == Event.stock_id)
         .order_by(Event.created_at.desc())
         .limit(20)
-    ).scalars().all()
+    ).all()
 
-    result = []
-    for e in events:
-        stock = db.session.get(Stock, e.stock_id)
-        result.append({
-            "stock_name": stock.name,
-            "ticker": stock.ticker,
-            "title": e.title,
-            "description": e.description,
-            "impact": e.impact,
-            "type": "positive" if e.impact > 0 else "negative",
-            "time": e.created_at.strftime("%H:%M:%S")
-        })
-
-    return jsonify(result)
+    return jsonify([{
+        "stock_name": stock.name,
+        "ticker": stock.ticker,
+        "title": e.title,
+        "description": e.description,
+        "impact": e.impact,
+        "type": "positive" if e.impact > 0 else "negative",
+        "time": e.created_at.strftime("%H:%M:%S")
+    } for e, stock in rows])
 
 # -------------------------
 # 관리자 - 이벤트 강제 발생
@@ -589,29 +577,53 @@ def transfer():
 # -------------------------
 # 게임 틱 함수들
 # -------------------------
+_tick_counter = 0
+
 def update_stock_prices():
+    global _tick_counter
+    _tick_counter += 1
+
     stocks = db.session.execute(db.select(Stock)).scalars().all()
 
+    # 이벤트 한 번에 전체 조회
+    all_events = db.session.execute(
+        db.select(Event).where(Event.duration > 0)
+    ).scalars().all()
+    events_by_stock = {}
+    for e in all_events:
+        events_by_stock.setdefault(e.stock_id, []).append(e)
+
+    new_histories = []
     for s in stocks:
-        # 기본 랜덤 변동 (-3% ~ +3%)
         change = random.uniform(-0.03, 0.03)
 
-        # 이벤트 효과 적용
-        events = db.session.execute(
-            db.select(Event).where(Event.stock_id == s.id, Event.duration > 0)
-        ).scalars().all()
-
-        for e in events:
-            change += e.impact * 0.5  # 이벤트 영향 누적
+        for e in events_by_stock.get(s.id, []):
+            change += e.impact * 0.5
             e.duration -= 1
             if e.duration <= 0:
                 db.session.delete(e)
 
-        s.price = max(10, s.price * (1 + change))  # 최소가격 10원
+        s.price = max(10, s.price * (1 + change))
+        new_histories.append(PriceHistory(stock_id=s.id, price=s.price))
 
-        # 히스토리 저장
-        history = PriceHistory(stock_id=s.id, price=s.price)
-        db.session.add(history)
+    db.session.bulk_save_objects(new_histories)
+
+    # 60틱마다 오래된 PriceHistory 정리 (종목당 최근 360개만 유지)
+    if _tick_counter % 60 == 0:
+        from sqlalchemy import text
+        for s in stocks:
+            subq = (
+                db.select(PriceHistory.id)
+                .where(PriceHistory.stock_id == s.id)
+                .order_by(PriceHistory.timestamp.desc())
+                .limit(360)
+                .subquery()
+            )
+            db.session.execute(
+                db.delete(PriceHistory)
+                .where(PriceHistory.stock_id == s.id)
+                .where(PriceHistory.id.notin_(db.select(subq.c.id)))
+            )
 
     db.session.commit()
 
@@ -729,8 +741,14 @@ def game_tick():
         trigger_event()
 
 
-# 스케줄러 시작 (5초마다 틱)
-scheduler.add_job(func=game_tick, trigger="interval", seconds=5)
+# 스케줄러 시작 (10초마다 틱, 중복실행 방지)
+scheduler.add_job(
+    func=game_tick,
+    trigger="interval",
+    seconds=10,
+    max_instances=1,
+    misfire_grace_time=5
+)
 scheduler.start()
 
 # -------------------------
