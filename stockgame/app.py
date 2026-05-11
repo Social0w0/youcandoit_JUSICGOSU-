@@ -26,6 +26,9 @@ db.init_app(app)
 
 scheduler = BackgroundScheduler()
 
+# 서킷 브레이커 상태: {stock_id: unlock_time}
+circuit_breakers = {}
+
 # -------------------------
 # 이벤트 데이터
 # -------------------------
@@ -251,6 +254,8 @@ def get_stocks():
             db.select(Event).where(Event.stock_id == s.id, Event.duration > 0)
         ).scalars().all()
 
+            halt_remaining = check_circuit_breaker(s.id)
+
         result.append({
             "id": s.id,
             "name": s.name,
@@ -259,7 +264,9 @@ def get_stocks():
             "description": s.description,
             "change_pct": round(change_pct, 2),
             "has_event": len(active_events) > 0,
-            "event_direction": "positive" if active_events and active_events[0].impact > 0 else ("negative" if active_events else None)
+            "event_direction": "positive" if active_events and active_events[0].impact > 0 else ("negative" if active_events else None),
+            "halted": halt_remaining is not None,
+            "halt_remaining": halt_remaining
         })
 
     return jsonify(result)
@@ -275,6 +282,19 @@ def buy():
 
     if qty <= 0:
         return jsonify({"error": "수량은 1 이상이어야 합니다"}), 400
+
+    if not stock_id or not user_id:
+        return jsonify({"error": "user_id, stock_id 필요"}), 400
+
+    # 서킷 브레이커 체크
+    remaining = check_circuit_breaker(stock_id)
+    if remaining:
+        stock = db.session.get(Stock, stock_id)
+        stock_name = stock.name if stock else "해당 종목"
+        return jsonify({
+            "error": f"🚫 {stock_name} 거래 정지 중 (급격한 가격 변동)",
+            "halt_remaining": remaining
+        }), 423  # 423 Locked
 
     user = db.session.get(User, user_id)
     stock = db.session.get(Stock, stock_id)
@@ -322,6 +342,22 @@ def sell():
 
     if qty <= 0:
         return jsonify({"error": "수량은 1 이상이어야 합니다"}), 400
+
+    if not stock_id or not user_id:
+        return jsonify({"error": "user_id, stock_id 필요"}), 400
+
+    # 서킷 브레이커 체크
+    remaining = check_circuit_breaker(stock_id)
+    if remaining:
+        stock = db.session.get(Stock, stock_id)
+        stock_name = stock.name if stock else "해당 종목"
+        return jsonify({
+            "error": f"🚫 {stock_name} 거래 정지 중 (급격한 가격 변동)",
+            "halt_remaining": remaining
+        }), 423
+
+    # ... 기존 로직 동일 ...
+
 
     user = db.session.get(User, user_id)
     stock = db.session.get(Stock, stock_id)
@@ -394,28 +430,6 @@ def portfolio(user_id):
         "stocks": result,
         "total": round(total, 2)
     })
-
-# -------------------------
-# 가격 히스토리
-# -------------------------
-@app.route("/history/<int:stock_id>")
-def history(stock_id):
-    data = db.session.execute(
-        db.select(PriceHistory)
-        .where(PriceHistory.stock_id == stock_id)
-        .order_by(PriceHistory.timestamp.desc())
-        .limit(300)
-    ).scalars().all()
-
-    data = list(reversed(data))  # 최신 300개를 시간순으로
-
-    return jsonify([
-        {
-            "price": round(d.price, 2),
-            "time": d.timestamp.strftime("%H:%M:%S")
-        }
-        for d in data
-    ])
 
 # -------------------------
 # 랭킹
@@ -606,6 +620,33 @@ def transfer():
     })
 
 # -------------------------
+# 관리자 - 서킷 브레이커 현황 조회 / 해제
+# -------------------------
+@app.route("/admin/circuit_breakers")
+def admin_circuit_breakers():
+    now = datetime.utcnow()
+    result = []
+    for stock_id, unlock_time in list(circuit_breakers.items()):
+        if now >= unlock_time:
+            del circuit_breakers[stock_id]
+            continue
+        stock = db.session.get(Stock, stock_id)
+        result.append({
+            "stock_id": stock_id,
+            "stock_name": stock.name if stock else "?",
+            "halt_remaining": int((unlock_time - now).total_seconds())
+        })
+    return jsonify(result)
+
+@app.route("/admin/circuit_breaker/unlock", methods=["POST"])
+def admin_unlock_circuit_breaker():
+    stock_id = request.json.get("stock_id")
+    if stock_id and stock_id in circuit_breakers:
+        del circuit_breakers[stock_id]
+        return jsonify({"message": f"stock_id={stock_id} 거래 정지 해제"})
+    return jsonify({"message": "해당 종목 거래 정지 없음"}), 404
+
+# -------------------------
 # 게임 틱 함수들
 # -------------------------
 _tick_counter = 0
@@ -616,7 +657,6 @@ def update_stock_prices():
 
     stocks = db.session.execute(db.select(Stock)).scalars().all()
 
-    # 이벤트 한 번에 전체 조회
     all_events = db.session.execute(
         db.select(Event).where(Event.duration > 0)
     ).scalars().all()
@@ -626,16 +666,24 @@ def update_stock_prices():
 
     new_histories = []
     for s in stocks:
+        prev_price = s.price  # 변동률 계산용
+        
         change = random.uniform(-0.03, 0.03)
 
         for e in events_by_stock.get(s.id, []):
             change += e.impact * 0.5
             e.duration -= 1
             if e.duration <= 0:
-                e.duration = 0  # 삭제 대신 0으로 유지 (뉴스 기록 보존)
+                e.duration = 0
 
         s.price = max(10, s.price * (1 + change))
         new_histories.append(PriceHistory(stock_id=s.id, price=s.price))
+        
+        # 서킷 브레이커 체크
+        change_pct = ((s.price - prev_price) / prev_price * 100) if prev_price else 0
+        halt = trigger_circuit_breaker(s.id, change_pct)
+        if halt:
+            print(f"[CIRCUIT BREAKER] {s.name}: {change_pct:+.2f}% 변동 → {halt}초 거래 정지")
 
     db.session.bulk_save_objects(new_histories)
 
@@ -664,6 +712,44 @@ def update_stock_prices():
             )
 
     db.session.commit()
+
+from datetime import timedelta
+
+def check_circuit_breaker(stock_id):
+    """서킷 브레이커 상태 확인. 거래 불가 시 남은 시간(초) 반환, 거래 가능 시 None"""
+    if stock_id not in circuit_breakers:
+        return None
+    
+    unlock_time = circuit_breakers[stock_id]
+    now = datetime.utcnow()
+    
+    if now >= unlock_time:
+        del circuit_breakers[stock_id]
+        return None
+    
+    return int((unlock_time - now).total_seconds())
+
+
+def trigger_circuit_breaker(stock_id, change_pct):
+    """변동률에 따라 서킷 브레이커 발동. 발동 시 정지 시간(초) 반환"""
+    abs_change = abs(change_pct)
+
+    if abs_change < 5:
+        return None
+
+    # 변동률에 비례한 정지 시간 계산
+    # 5% → 60초, 10% → 120초, 15% → 180초, 최대 300초(5분)
+    halt_seconds = min(int(abs_change * 12), 300)
+
+    new_unlock = datetime.utcnow() + timedelta(seconds=halt_seconds)
+
+    # 기존 브레이커가 더 길면 덮어쓰지 않음 (연속 급변동으로 리셋되는 버그 방지)
+    existing = circuit_breakers.get(stock_id)
+    if existing and existing > new_unlock:
+        return int((existing - datetime.utcnow()).total_seconds())
+
+    circuit_breakers[stock_id] = new_unlock
+    return halt_seconds
 
 
 # -------------------------

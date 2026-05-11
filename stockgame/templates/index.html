@@ -313,6 +313,47 @@
   .event-pos { background: rgba(34,197,94,0.15); color: var(--green); }
   .event-neg { background: rgba(239,68,68,0.15); color: var(--red); }
 
+  /* ── 서킷 브레이커 ── */
+  .stock-card.halted {
+    opacity: 0.55;
+    border-color: rgba(245,158,11,0.4) !important;
+    cursor: default;
+  }
+  .stock-card.halted:hover {
+    border-color: rgba(245,158,11,0.6) !important;
+    background: var(--bg2);
+  }
+  .halt-badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 4px;
+    font-weight: 700; white-space: nowrap;
+    background: rgba(245,158,11,0.15); color: var(--amber);
+    animation: haltPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes haltPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .halt-banner {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.35);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .halt-banner-icon { font-size: 20px; flex-shrink: 0; }
+  .halt-banner-text { flex: 1; line-height: 1.5; }
+  .halt-banner-text strong { color: var(--amber); display: block; font-size: 14px; }
+  .halt-banner-timer {
+    font-family: var(--font-mono); font-size: 22px; font-weight: 700;
+    color: var(--amber); flex-shrink: 0;
+  }
+  .btn-buy:disabled, .btn-sell:disabled {
+    opacity: 0.3; cursor: not-allowed;
+    pointer-events: none;
+  }
+
   /* ── RANKING ── */
   .rank-list { display: flex; flex-direction: column; gap: 8px; }
   .rank-item {
@@ -1106,18 +1147,26 @@ function renderStockGrid() {
     const chg = s.change_pct;
     const chgClass = chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'neu';
     const chgSign = chg > 0 ? '+' : '';
-    const eventBadge = s.has_event
-      ? `<span class="event-badge event-${s.event_direction}">${s.event_direction === 'positive' ? '▲ 호재' : '▼ 악재'}</span>`
-      : '';
+
+    let badge = '';
+    if (s.halted) {
+      badge = `<span class="halt-badge">🚫 거래정지 ${s.halt_remaining}s</span>`;
+    } else if (s.has_event) {
+      badge = `<span class="event-badge event-${s.event_direction}">${s.event_direction === 'positive' ? '▲ 호재' : '▼ 악재'}</span>`;
+    }
+
+    const haltedClass = s.halted ? 'halted' : '';
+    const clickHandler = s.halted ? '' : `onclick="openDetail(${s.id})"`;
+
     return `
-      <div class="stock-card" onclick="openDetail(${s.id})">
+      <div class="stock-card ${haltedClass}" ${clickHandler}>
         <div class="stock-icon" style="background:${color}22; color:${color}">${icon}</div>
         <div class="stock-info">
-          <div class="stock-name">${s.name} ${eventBadge}</div>
+          <div class="stock-name">${s.name} ${badge}</div>
           <div class="stock-desc">${s.description || ''}</div>
         </div>
         <div class="stock-right">
-          <div class="stock-price" style="color:${color}">${fmt(s.price)}원</div>
+          <div class="stock-price" style="color:${s.halted ? 'var(--amber)' : color}">${fmt(s.price)}원</div>
           <div class="stock-change ${chgClass}">${chgSign}${chg.toFixed(2)}%</div>
         </div>
       </div>`;
@@ -1187,6 +1236,7 @@ function backFromDetail() {
   }
   currentStock = null;
   if (priceChart) { priceChart.destroy(); priceChart = null; }
+  stopHaltCountdown();
 }
 
 // ── STOCK DETAIL ──
@@ -1223,7 +1273,62 @@ function updateDetailPrices() {
   const holding = (portfolio.stocks || []).find(h => h.stock_id === currentStock.id);
   document.getElementById('trade-holding').textContent = (holding ? holding.quantity : 0) + '주';
 
+  // 서킷 브레이커 배너
+  const existingBanner = document.getElementById('halt-banner');
+  if (existingBanner) existingBanner.remove();
+
+  const buyBtn  = document.querySelector('.btn-buy');
+  const sellBtn = document.querySelector('.btn-sell');
+
+  if (currentStock.halted && currentStock.halt_remaining > 0) {
+    const banner = document.createElement('div');
+    banner.id = 'halt-banner';
+    banner.className = 'halt-banner';
+    banner.innerHTML = `
+      <div class="halt-banner-icon">🚫</div>
+      <div class="halt-banner-text">
+        <strong>거래 일시 정지</strong>
+        급격한 가격 변동으로 서킷 브레이커 발동
+      </div>
+      <div class="halt-banner-timer" id="halt-countdown">${currentStock.halt_remaining}s</div>
+    `;
+    document.querySelector('.trade-panel').prepend(banner);
+    startHaltCountdown(currentStock.halt_remaining);
+    if (buyBtn)  buyBtn.disabled  = true;
+    if (sellBtn) sellBtn.disabled = true;
+  } else {
+    stopHaltCountdown();
+    if (buyBtn)  buyBtn.disabled  = false;
+    if (sellBtn) sellBtn.disabled = false;
+  }
+
   updateQtyDisplay();
+}
+
+let _haltTimer = null;
+
+function startHaltCountdown(seconds) {
+  stopHaltCountdown();
+  let remaining = seconds;
+  _haltTimer = setInterval(() => {
+    remaining--;
+    const el = document.getElementById('halt-countdown');
+    if (el) el.textContent = remaining + 's';
+    if (remaining <= 0) {
+      stopHaltCountdown();
+      // 정지 해제 시 배너 제거 + 버튼 복원
+      const banner = document.getElementById('halt-banner');
+      if (banner) banner.remove();
+      const buyBtn  = document.querySelector('.btn-buy');
+      const sellBtn = document.querySelector('.btn-sell');
+      if (buyBtn)  buyBtn.disabled  = false;
+      if (sellBtn) sellBtn.disabled = false;
+    }
+  }, 1000);
+}
+
+function stopHaltCountdown() {
+  if (_haltTimer) { clearInterval(_haltTimer); _haltTimer = null; }
 }
 
 function buildChart(data) {
@@ -1408,7 +1513,17 @@ async function executeTrade(action) {
       await fetchPortfolio();
       updateDetailPrices();
     } else {
-      showToast(data.error || '오류 발생', 'error');
+      if (data.halt_remaining) {
+        showToast(`🚫 거래 정지 중 — ${data.halt_remaining}초 후 재개`, 'error');
+        // 로컬 상태도 즉시 반영
+        if (currentStock) {
+          currentStock.halted = true;
+          currentStock.halt_remaining = data.halt_remaining;
+          updateDetailPrices();
+        }
+      } else {
+        showToast(data.error || '오류 발생', 'error');
+      }
     }
   } catch(e) {
     showToast('서버 오류', 'error');
