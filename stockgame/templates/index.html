@@ -57,6 +57,7 @@
   .asset-value {
     overflow-wrap: break-word;
     word-break: break-word;
+    white-space: normal;
   
     .asset-value {
       max-width: 100%;
@@ -1052,30 +1053,19 @@ function toggleNews() {
 function fmt(n) {
   n = Math.floor(n);
 
-  if (n >= 1_0000_0000_0000) {
-    const jo = Math.floor(n / 1_0000_0000_0000);
-    const remain = n % 1_0000_0000_0000;
-    const eok = Math.floor(remain / 1_0000_0000);
-    const rest = remain % 1_0000_0000;
+  const jo = Math.floor(n / 1_0000_0000_0000);
+  const eok = Math.floor((n % 1_0000_0000_0000) / 1_0000_0000);
+  const man = Math.floor((n % 1_0000_0000) / 10000);
+  const rest = n % 10000;
 
-    return `${jo}조 ${eok}억 ${rest.toLocaleString()}원`;
-  }
+  let result = "";
 
-  if (n >= 1_0000_0000) {
-    const eok = Math.floor(n / 1_0000_0000);
-    const remain = n % 1_0000_0000;
+  if (jo > 0) result += `${jo}조 `;
+  if (eok > 0) result += `${eok}억 `;
+  if (man > 0) result += `${man}만 `;
+  if (rest > 0) result += `${rest.toLocaleString()}`;
 
-    return `${eok}억 ${remain.toLocaleString()}원`;
-  }
-
-  if (n >= 10000) {
-    const man = Math.floor(n / 10000);
-    const remain = n % 10000;
-
-    return `${man}만 ${remain.toLocaleString()}원`;
-  }
-
-  return `${n.toLocaleString()}원`;
+  return result.trim();
 }
 
 function renderPortfolio() {
