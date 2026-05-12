@@ -206,6 +206,33 @@ SHOP_TITLE_SEEDS = [
         'sort_order': 2,
     },
     {
+        'id': 12,
+        'name': '존버의 화석',
+        'emoji': '🗿',
+        'description': '우리는, 결국 승리한다.',
+        'price': 3000_0000,
+        'color': "#746060",
+        'sort_order': 2,
+    },
+    {
+        'id': 13,
+        'name': '상폐 컬렉터',
+        'emoji': '💀',
+        'description': '우리는, 결국 승리한다.',
+        'price': 4000_0000,
+        'color': "#bdbdbd",
+        'sort_order': 2,
+    },
+        {
+        'id': 14,
+        'name': '광대',
+        'emoji': '🤡',
+        'description': '아저씨는 왜 집이 없어요??',
+        'price': 5000_0000,
+        'color': "#ffb5b5",
+        'sort_order': 2,
+    },
+    {
         'id': 3,
         'name': '다크호스',
         'emoji': '🐴',
@@ -266,7 +293,7 @@ SHOP_TITLE_SEEDS = [
         'description': '이 정도 경지라면, 두려울 게 없겠네요!',
         'price': 1000_0000_0000,
         'color': "#ffe990",
-        'sort_order': 5,
+        'sort_order': 7,
     },
     {
         'id': 10,
@@ -275,7 +302,7 @@ SHOP_TITLE_SEEDS = [
         'description': '정점',
         'price': 1_0000_0000_0000_0000,
         'color': "#0000ff",
-        'sort_order': 6,
+        'sort_order': 9,
     },
     {
         'id': 11,
@@ -284,7 +311,7 @@ SHOP_TITLE_SEEDS = [
         'description': '나 지금... 떨고 있니?',
         'price': 70_0000_0000,
         'color': "#9fff31",
-        'sort_order': 7,
+        'sort_order': 6,
     },
 ]
 
