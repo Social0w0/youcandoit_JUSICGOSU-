@@ -1222,6 +1222,34 @@ function fmt(n) {
   return result.trim() || "0";
 }
 
+// 랭킹 전용: 억 이상이면 앞 두 단위만 표기
+function fmtRank(n) {
+  n = Math.floor(n);
+
+  const gyeong = Math.floor(n / 1_0000_0000_0000_0000);
+  const jo = Math.floor((n % 1_0000_0000_0000_0000) / 1_0000_0000_0000);
+  const eok = Math.floor((n % 1_0000_0000_0000) / 1_0000_0000);
+  const man = Math.floor((n % 1_0000_0000) / 10000);
+  const rest = n % 10000;
+
+  // 억 미만이면 기존 fmt와 동일하게 전체 표기
+  if (n < 1_0000_0000) {
+    let result = "";
+    if (man > 0) result += `${man}만 `;
+    if (rest > 0) result += `${rest.toLocaleString()}`;
+    return result.trim() || "0";
+  }
+
+  // 억 이상이면 앞 두 단위만 표기
+  const parts = [];
+  if (gyeong > 0) parts.push(`${gyeong}경`);
+  if (jo > 0) parts.push(`${jo}조`);
+  if (eok > 0) parts.push(`${eok}억`);
+  if (man > 0) parts.push(`${man}만`);
+
+  return parts.slice(0, 2).join(' ');
+}
+
 function renderPortfolio() {
   if (!portfolio || portfolio.error) return;
   const stockVal = (portfolio.stocks || []).reduce((s, h) => s + h.value, 0);
@@ -1308,7 +1336,7 @@ function renderRanking(data) {
         </div>
         ${titleBadge}
       </div>
-      <div class="rank-total">${fmt(u.total)}원</div>
+      <div class="rank-total">${fmtRank(u.total)}원</div>
     </div>`;
     }).join('');
 
