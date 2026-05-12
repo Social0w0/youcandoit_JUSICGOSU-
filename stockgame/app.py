@@ -341,6 +341,13 @@ def buy():
         db.session.get(Stock, h.stock_id).price * h.quantity
         for h in holdings_all
     )
+
+    # peak_asset 갱신
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if profile and total_asset > (profile.peak_asset or 0):
+        profile.peak_asset = total_asset
+
+
     newly = check_and_unlock_titles(user_id, total_asset)
 
     return jsonify({
@@ -406,6 +413,11 @@ def sell():
         db.session.get(Stock, h.stock_id).price * h.quantity
         for h in holdings_all
     )
+    # peak_asset 갱신
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if profile and total_asset > (profile.peak_asset or 0):
+        profile.peak_asset = total_asset
+
     newly = check_and_unlock_titles(user_id, total_asset)
 
     return jsonify({
@@ -732,6 +744,10 @@ def transfer():
         stock = db.session.get(Stock, h.stock_id)
         total_assets += stock.price * h.quantity
 
+    profile = UserProfile.query.filter_by(user_id=from_id).first()  # user_id → from_id
+    if profile and total_assets > (profile.peak_asset or 0):
+        profile.peak_asset = total_assets
+
     # 10% 제한
     max_amount = total_assets * 0.1
     if amount > max_amount:
@@ -766,6 +782,18 @@ def transfer():
 
     log = Transfer(from_id=from_id, to_id=receiver.id, amount=amount, fee=amount * 0.05)
     db.session.add(log)
+
+    receiver_holdings = db.session.execute(
+        db.select(Holding).where(Holding.user_id == receiver.id)
+    ).scalars().all()
+    receiver_total = receiver.cash + sum(
+        db.session.get(Stock, h.stock_id).price * h.quantity
+        for h in receiver_holdings
+    )
+    receiver_profile = UserProfile.query.filter_by(user_id=receiver.id).first()
+    if receiver_profile and receiver_total > (receiver_profile.peak_asset or 0):
+        receiver_profile.peak_asset = receiver_total
+
     db.session.commit()
 
     return jsonify({
