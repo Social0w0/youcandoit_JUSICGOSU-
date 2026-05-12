@@ -173,7 +173,7 @@ class ShopTitle(db.Model):
     emoji       = db.Column(db.String(10), nullable=False)    # "🤑"
     description = db.Column(db.String(100))                   # "상점에서 구매한 칭호"
     price       = db.Column(db.Float, nullable=False)         # 구매 가격 (원)
-    color       = db.Column(db.String(20), nullable=False)    # CSS 색상값
+    color       = db.Column(db.String(100), nullable=False)    # CSS 색상값
     sort_order  = db.Column(db.Integer, default=0)
 
 
