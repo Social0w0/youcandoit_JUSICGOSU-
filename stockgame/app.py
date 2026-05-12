@@ -798,7 +798,7 @@ def update_stock_prices():
     for s in stocks:
         prev_price = s.price  # 변동률 계산용
         
-        change = random.uniform(-0.03, 0.018)
+        change = random.uniform(-0.018, 0.018)
 
         for e in events_by_stock.get(s.id, []):
             change += e.impact * 0.5
@@ -893,10 +893,10 @@ STOCK_FINANCIALS = {
 def generate_earnings(stock, is_positive):
     base = STOCK_FINANCIALS.get(stock.name, {"revenue": 1000, "operating": 150, "net": 100})
     if is_positive:
-        multiplier = random.uniform(1.05, 1.30)
+        multiplier = random.uniform(1.05, 1.20)
         beat = "▲ 예상치 상회"
     else:
-        multiplier = random.uniform(0.65, 0.92)
+        multiplier = random.uniform(0.75, 0.92)
         beat = "▼ 예상치 하회"
 
     revenue = round(base["revenue"] * multiplier * random.uniform(0.95, 1.05))
@@ -941,15 +941,15 @@ def trigger_event():
     s = random.choice(stocks)
 
     # 20% 확률로 이벤트 발생
-    if random.random() < 0.13:
+    if random.random() < 0.2:
         is_positive = random.random() < 0.5
         event_pool = EVENTS["positive"] if is_positive else EVENTS["negative"]
         title, desc = random.choice(event_pool)
 
         if is_positive:
-            impact = random.choice([0.08, 0.09, 0.10, 0.15])
+            impact = random.choice([0.03, 0.05, 0.10, 0.15])
         else:
-            impact = random.choice([-0.08, -0.12, -0.15, -0.20])
+            impact = random.choice([-0.03, -0.05, -0.10, -0.20])
 
         duration = random.randint(3, 10)
 
