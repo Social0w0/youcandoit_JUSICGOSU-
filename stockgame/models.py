@@ -296,15 +296,6 @@ SHOP_TITLE_SEEDS = [
         'sort_order': 7,
     },
     {
-        'id': 10,
-        'name': '주식의 신',
-        'emoji': '🎖️',
-        'description': '정점',
-        'price': 1_0000_0000_0000_0000,
-        'color': "#0000ff",
-        'sort_order': 9,
-    },
-    {
         'id': 11,
         'name': '물린 자의 품격',
         'emoji': '😎',
@@ -313,6 +304,43 @@ SHOP_TITLE_SEEDS = [
         'color': "#9fff31",
         'sort_order': 6,
     },
+    {
+        'id': 15,
+        'name': '보이지 않는 손',
+        'emoji': '✋',
+        'description': '주가를 주무르는 거대한 권력!',
+        'price': 1_0000_0000_0000,
+        'color': "#fff8bb",
+        'sort_order': 7,
+    },
+    {
+        'id': 16,
+        'name': '불사조',
+        'emoji': '🐦‍🔥',
+        'description': '뭣 4조가 불에 탄다고??!',
+        'price': 4_0000_0000_0000,
+        'color': "#ff0000",
+        'sort_order': 7,
+    },
+    {
+        'id': 17,
+        'name': '초신성',
+        'emoji': '🌠',
+        'description': '어느새 여기까지.',
+        'price': 100_0000_0000_0000,
+        'color': "#3b62ff",
+        'sort_order': 7,
+    },
+    {
+        'id': 10,
+        'name': '주식의 신',
+        'emoji': '🎖️',
+        'description': '정점',
+        'price': 1_0000_0000_0000_0000,
+        'color': "#0000ff",
+        'sort_order': 9,
+    },
+
 ]
 
 
