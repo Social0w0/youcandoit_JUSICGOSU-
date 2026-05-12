@@ -345,6 +345,8 @@
     grid-template-columns: 36px 1fr auto;
     align-items: center;
     gap: 0 12px;
+    cursor: pointer;
+    
   }
   .rank-num {
     font-family: var(--font-mono);
@@ -1349,7 +1351,7 @@ function renderRanking(data) {
   ? `<span class="rank-title-badge" style="color:${u.title.color}">${u.title.emoji} ${u.title.name}</span>`
   : '';
   return `
-    <div class="rank-item ${isMe ? 'rank-me' : ''}">
+    <div class="rank-item ${isMe ? 'rank-me' : ''}" onclick="openOtherProfile('${u.username}')">
       <div class="rank-num ${numClass}">${medal}</div>
       <div class="rank-name-wrap">
         <div class="rank-name-row">
@@ -1360,7 +1362,7 @@ function renderRanking(data) {
       <div class="rank-total">${fmtRank(u.total)}원</div>
     </div>`;
     }).join('');
-
+    
   if (hasMore) {
     list.innerHTML += `<button class="show-more-btn" onclick="toggleRanking()">
       ${rankingExpanded ? '▲ 접기' : `▼ 더보기 (${data.length - 5}명)`}
