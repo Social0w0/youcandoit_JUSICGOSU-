@@ -87,9 +87,6 @@
     font-size: 13px;
     cursor: pointer;
     transition: border-color 0.2s;
-    max-width: 160px;        
-    overflow: hidden;      
-    white-space: nowrap;     
   }
   .topbar-user:hover { border-color: var(--border2); }
   .topbar-user .dot {
@@ -112,6 +109,27 @@
     color: var(--accent);
     background: rgba(124,110,255,0.08);
   }
+
+  /* 기존 .topbar-user에서 white-space:nowrap 등 ①번 수정 제거하고 원복 */
+
+@media (max-width: 600px) {
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 16px;
+    gap: 8px;
+  }
+  .topbar-spacer {
+    display: none;         
+  }
+  .topbar-logo {
+    flex: 1;               
+  }
+  .topbar-user {
+    width: 100%;           
+    justify-content: flex-start;
+  }
+}
 
   /* ── LOGIN SCREEN ── */
 #view-login {
