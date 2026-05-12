@@ -935,26 +935,79 @@
 <!-- 프로필 모달 -->
 <div id="profile-modal" style="display:none;">
   <div class="modal-overlay" onclick="closeProfileModal(event)">
-    <div class="modal-box" style="max-width:440px;" onclick="event.stopPropagation()">
-      <div class="modal-title">👤 프로필 설정</div>
+    <div class="modal-box" style="max-width:440px;padding:0;overflow:hidden;" onclick="event.stopPropagation()">
 
-      <!-- 칭호 -->
-      <div class="profile-section">
-        <div class="profile-section-title">칭호</div>
-        <div class="title-grid" id="profile-title-grid">
-          <div class="empty-state" style="grid-column:1/-1">로딩 중...</div>
+      <!-- ── 메인 뷰 ── -->
+      <div id="profile-view-main">
+        <!-- 헤더 배경 영역 -->
+        <div id="profile-header-bg" style="padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; background:linear-gradient(135deg,#22222f,#1a1a24);">
+          <div id="profile-main-title-badge" style="margin-bottom:6px;"></div>
+          <div id="profile-main-username" style="font-size:24px;font-weight:700;font-family:var(--font-head);"></div>
+          <!-- 자산 카드 -->
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <div style="flex:1;background:rgba(0,0,0,0.25);border-radius:10px;padding:10px 14px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">현재 자산</div>
+              <div id="profile-asset-now" style="font-weight:700;font-family:var(--font-mono);font-size:15px;">—</div>
+            </div>
+            <div style="flex:1;background:rgba(0,0,0,0.25);border-radius:10px;padding:10px 14px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">최고 자산</div>
+              <div id="profile-asset-peak" style="font-weight:700;font-family:var(--font-mono);font-size:15px;color:var(--amber);">—</div>
+            </div>
+          </div>
+        </div>
+        <!-- 버튼 영역 -->
+        <div style="padding:16px 20px;display:flex;gap:10px;">
+          <button class="modal-cancel" style="flex:1;" onclick="closeProfileModal()">닫기</button>
+          <button id="profile-edit-btn" class="btn-primary" style="flex:1;padding:11px;" onclick="openProfileEdit()">✏️ 꾸미기</button>
         </div>
       </div>
 
-      <!-- 배경 -->
-      <div class="profile-section">
-        <div class="profile-section-title">배경</div>
-        <div class="bg-grid" id="profile-bg-grid"></div>
+      <!-- ── 수정 뷰 ── -->
+      <div id="profile-view-edit" style="display:none;">
+        <div style="padding:20px 20px 0;">
+          <div class="modal-title" style="margin-bottom:16px;">✏️ 프로필 꾸미기</div>
+          <!-- 칭호 -->
+          <div class="profile-section">
+            <div class="profile-section-title">칭호</div>
+            <div class="title-grid" id="profile-title-grid">
+              <div class="empty-state" style="grid-column:1/-1">로딩 중...</div>
+            </div>
+          </div>
+          <!-- 배경 -->
+          <div class="profile-section">
+            <div class="profile-section-title">배경</div>
+            <div class="bg-grid" id="profile-bg-grid"></div>
+          </div>
+        </div>
+        <div class="modal-btns" style="margin:8px 20px 16px;">
+          <button class="modal-cancel" onclick="closeProfileEdit()">뒤로</button>
+          <button class="btn-primary" style="padding:11px" onclick="saveProfile()">저장</button>
+        </div>
       </div>
 
-      <div class="modal-btns" style="margin-top:8px;">
-        <button class="modal-cancel" onclick="closeProfileModal()">닫기</button>
-        <button class="btn-primary" style="padding:11px" onclick="saveProfile()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div id="other-profile-modal" style="display:none;">
+  <div class="modal-overlay" onclick="closeOtherProfileModal(event)">
+    <div class="modal-box" style="max-width:440px;padding:0;overflow:hidden;" onclick="event.stopPropagation()">
+      <div id="other-profile-header-bg" style="padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; background:linear-gradient(135deg,#22222f,#1a1a24);">
+        <div id="other-profile-title-badge" style="margin-bottom:6px;"></div>
+        <div id="other-profile-username" style="font-size:24px;font-weight:700;font-family:var(--font-head);"></div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <div style="flex:1;background:rgba(0,0,0,0.25);border-radius:10px;padding:10px 14px;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">현재 자산</div>
+            <div id="other-profile-asset-now" style="font-weight:700;font-family:var(--font-mono);font-size:15px;">—</div>
+          </div>
+          <div style="flex:1;background:rgba(0,0,0,0.25);border-radius:10px;padding:10px 14px;">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">최고 자산</div>
+            <div id="other-profile-asset-peak" style="font-weight:700;font-family:var(--font-mono);font-size:15px;color:var(--amber);">—</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:16px 20px;">
+        <button class="modal-cancel" style="width:100%;" onclick="closeOtherProfileModal()">닫기</button>
       </div>
     </div>
   </div>
