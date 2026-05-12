@@ -2076,6 +2076,92 @@ function closeOtherProfileModal(e) {
   if (e && e.target !== document.querySelector('#other-profile-modal .modal-overlay')) return;
   document.getElementById('other-profile-modal').style.display = 'none';
 }
+// ── 상점 ──
+async function loadShopTitles() {
+  try {
+    const res = await fetch(API + `/shop/titles?user_id=${userId}`);
+    const titles = await res.json();
+    renderShopTitles(titles);
+
+    // 보유 현금 표시 갱신
+    const cashEl = document.getElementById('shop-cash-display');
+    if (cashEl) cashEl.textContent = fmt(portfolio.cash) + '원';
+  } catch(e) {
+    const grid = document.getElementById('shop-title-grid');
+    if (grid) grid.innerHTML = '<div class="empty-state">상점을 불러오지 못했습니다</div>';
+  }
+}
+
+function renderShopTitles(titles) {
+  const grid = document.getElementById('shop-title-grid');
+  if (!grid) return;
+  if (!titles.length) {
+    grid.innerHTML = '<div class="empty-state">등록된 칭호가 없습니다</div>';
+    return;
+  }
+
+  grid.innerHTML = titles.map(t => {
+    const owned = t.purchased;
+    return `
+      <div class="shop-title-card ${owned ? 'purchased' : ''}">
+        <div class="shop-title-card-emoji">${t.emoji}</div>
+        <div class="shop-title-card-info">
+          <div class="shop-title-card-name" style="color:${t.color}">${t.name}</div>
+          <div class="shop-title-card-desc">${t.description || ''}</div>
+        </div>
+        <div class="shop-title-card-right">
+          <div class="shop-title-card-price">${fmt(t.price)}원</div>
+          ${owned
+            ? `<button class="btn-shop-owned" onclick="equipShopTitle(${t.id})">장착</button>`
+            : `<button class="btn-shop-buy" onclick="buyShopTitle(${t.id}, ${t.price})">구매</button>`
+          }
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function buyShopTitle(shopTitleId, price) {
+  if (!userId) return;
+  if (!confirm(`이 칭호를 ${fmt(price)}원에 구매하시겠습니까?`)) return;
+  try {
+    const res = await fetch(API + '/shop/buy', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, shop_title_id: shopTitleId })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message, 'success');
+      await fetchPortfolio(); // 현금 갱신
+      loadShopTitles();       // 목록 새로고침 (구매 버튼 → 장착 버튼)
+    } else {
+      showToast(data.error || '구매 실패', 'error');
+    }
+  } catch(e) {
+    showToast('서버 오류', 'error');
+  }
+}
+
+async function equipShopTitle(shopTitleId) {
+  if (!userId) return;
+  try {
+    const res = await fetch(API + '/shop/equip', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, shop_title_id: shopTitleId })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('칭호를 장착했습니다!', 'success');
+      // 프로필 데이터 갱신 (상단바 칭호 반영)
+      if (profileData) {
+        profileData.equipped_shop_title_id = data.equipped_shop_title_id;
+      }
+    } else {
+      showToast(data.error || '장착 실패', 'error');
+    }
+  } catch(e) {
+    showToast('서버 오류', 'error');
+  }
+}
 
 // ── ENTER KEY ──
 document.getElementById('username-input').addEventListener('keydown', e => {
