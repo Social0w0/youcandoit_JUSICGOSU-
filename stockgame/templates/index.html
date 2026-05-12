@@ -395,21 +395,28 @@
     text-transform: uppercase; letter-spacing: 0.05em;
     margin-bottom: 10px;
   }
-  .title-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .title-card {
-    background: var(--bg3); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px 12px;
-    cursor: pointer; transition: all 0.2s;
-    display: flex; align-items: center; gap: 8px;
+  .modal-box {
+  max-height: 90vh;
+  overflow-y: auto;
   }
+  .title-grid {
+  display: grid;grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));gap: 8px;
+  /* 핵심 */max-height: 320px;overflow-y: auto;padding-right: 4px;}
+
+  .title-card {
+  min-height: 72px;background: var(--bg3);border: 1px solid var(--border);border-radius: var(--radius-sm);
+  padding: 10px 12px;cursor: pointer;transition: all 0.2s;
+  display: flex;align-items: center;gap: 8px;
+  }
+  
   .title-card:hover:not(.locked) { border-color: var(--border2); }
   .title-card.equipped { border-color: var(--accent) !important; background: rgba(124,110,255,0.1); }
   .title-card.locked { opacity: 0.35; cursor: not-allowed; }
   .title-card-emoji { font-size: 18px; flex-shrink: 0; }
-  .title-card-info { min-width: 0; }
-  .title-card-name { font-size: 13px; font-weight: 700; }
-  .title-card-desc { font-size: 11px; color: var(--muted); margin-top: 1px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title-card-info { flex: 1; min-width: 0; }
+  .title-card-name { font-size: 13px; font-weight: 700;overflow: hidden;text-overflow: ellipsis;white-space: nowrap; }
+
+  .title-card-desc { font-size: 11px; color: var(--muted); margin-top: 1px;overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bg-grid { display: flex; gap: 8px; flex-wrap: wrap; }
   .bg-swatch {
     width: 40px; height: 40px; border-radius: 8px;
