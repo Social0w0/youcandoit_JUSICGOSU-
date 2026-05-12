@@ -277,6 +277,15 @@ SHOP_TITLE_SEEDS = [
         'color': "linear-gradient(90deg, #ffffff, #0000ff, #ffffff)",
         'sort_order': 6,
     },
+    {
+        'id': 11,
+        'name': '물린 자의 품격',
+        'emoji': '😎',
+        'description': '나 지금... 떨고 있니?',
+        'price': 70_0000_0000,
+        'color': "linear-gradient(90deg, #ffffff, #000000, #ffffff)",
+        'sort_order': 7,
+    },
 ]
 
 

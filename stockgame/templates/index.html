@@ -916,13 +916,50 @@
       <div style="text-align:center; padding:20px; color:var(--muted); font-size:13px;">곧 업데이트 예정입니다</div>
     </div>
 
-    <!-- 닉네임 변경권 섹션 (비활성화) -->
-    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; opacity:0.4; pointer-events:none; position:relative;">
-      <div style="position:absolute; top:12px; right:14px; font-size:11px; color:var(--muted); background:var(--bg3); border:1px solid var(--border); padding:3px 10px; border-radius:20px;">준비 중</div>
+    <!-- 닉네임 변경권 섹션 -->
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; position:relative;">
       <div class="sec-head" style="margin-bottom:20px;">
         <div class="sec-title">✏️ 닉네임 변경권</div>
       </div>
-      <div style="text-align:center; padding:20px; color:var(--muted); font-size:13px;">곧 업데이트 예정입니다</div>
+
+      <!-- 비용 안내 -->
+      <div id="rename-cost-box" style="background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:12px; color:var(--muted);">변경 비용</span>
+          <span id="rename-fee-display" style="font-size:15px; font-weight:700; color:var(--yellow, #f59e0b);">— 원</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; color:var(--muted);">총 자산의 15% (현금 차감)</span>
+          <span id="rename-cash-display" style="font-size:12px; color:var(--muted);">현금: — 원</span>
+        </div>
+        <div id="rename-afford-warn" style="display:none; margin-top:8px; font-size:11px; color:var(--red); background:rgba(239,68,68,0.08); border-radius:6px; padding:5px 10px;">
+          ⚠️ 현금이 부족합니다. 주식을 매도하거나 현금을 확보해주세요.
+        </div>
+      </div>
+
+      <!-- 입력 폼 -->
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="position:relative;">
+          <input
+            id="rename-input"
+            type="text"
+            maxlength="20"
+            placeholder="새 닉네임 입력 (최대 20자)"
+            style="width:100%; box-sizing:border-box; background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-size:14px; outline:none;"
+            oninput="onRenameInput(this)"
+          />
+          <span id="rename-len" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:11px; color:var(--muted);">0/20</span>
+        </div>
+        <div id="rename-error" style="font-size:12px; color:var(--red); min-height:16px;"></div>
+        <button
+          id="rename-btn"
+          onclick="doRename()"
+          style="width:100%; padding:11px; border:none; border-radius:8px; background:var(--accent); color:#fff; font-size:14px; font-weight:600; cursor:pointer; transition:opacity .15s;"
+        >닉네임 변경</button>
+        <div style="font-size:11px; color:var(--muted); text-align:center; line-height:1.6;">
+          현재 닉네임: <span id="rename-current" style="color:var(--text); font-weight:600;">—</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1529,6 +1566,11 @@ function showShop() {
   document.getElementById('nav-shop').classList.add('active');
   prevPanel = 'shop';
   loadShopTitles();
+
+  // 닉네임 변경 섹션 초기화
+  const curEl = document.getElementById('rename-current');
+  if (curEl) curEl.textContent = username || '—';
+  loadRenamePreview();
 }
 
 function backFromDetail() {
@@ -2301,6 +2343,99 @@ async function equipShopTitle(shopTitleId) {
     }
   } catch(e) {
     showToast('서버 오류', 'error');
+  }
+}
+
+
+// ── 닉네임 변경 ──
+function onRenameInput(el) {
+  const len = el.value.length;
+  const lenEl = document.getElementById('rename-len');
+  if (lenEl) lenEl.textContent = len + '/20';
+  // 입력 중에는 에러 메시지 초기화
+  const errEl = document.getElementById('rename-error');
+  if (errEl) errEl.textContent = '';
+}
+
+async function loadRenamePreview() {
+  if (!userId) return;
+  try {
+    const res = await fetch(API + `/shop/rename/preview/${userId}`);
+    const data = await res.json();
+    if (!res.ok) return;
+
+    const feeEl   = document.getElementById('rename-fee-display');
+    const cashEl  = document.getElementById('rename-cash-display');
+    const warnEl  = document.getElementById('rename-afford-warn');
+    const btnEl   = document.getElementById('rename-btn');
+
+    if (feeEl)  feeEl.textContent  = fmt(data.fee) + ' 원';
+    if (cashEl) cashEl.textContent = '현금: ' + fmt(data.cash) + ' 원';
+    if (warnEl) warnEl.style.display = data.affordable ? 'none' : 'block';
+    if (btnEl)  btnEl.disabled = !data.affordable;
+    if (btnEl)  btnEl.style.opacity = data.affordable ? '1' : '0.45';
+  } catch(e) {
+    // 실패해도 UI는 보여줌
+  }
+}
+
+async function doRename() {
+  if (!userId) return;
+  const newName = (document.getElementById('rename-input')?.value || '').trim();
+  const errEl   = document.getElementById('rename-error');
+
+  if (!newName) {
+    if (errEl) errEl.textContent = '새 닉네임을 입력해주세요';
+    return;
+  }
+  if (newName.length > 20) {
+    if (errEl) errEl.textContent = '닉네임은 20자 이내로 입력해주세요';
+    return;
+  }
+
+  const feeEl = document.getElementById('rename-fee-display');
+  const feeText = feeEl ? feeEl.textContent : '총 자산의 15%';
+
+  if (!confirm(`닉네임을 '${newName}'으로 변경합니다.\n변경 비용: ${feeText}\n이 금액이 현금에서 차감됩니다. 계속하시겠습니까?`)) return;
+
+  const btn = document.getElementById('rename-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '처리 중…'; }
+
+  try {
+    const res = await fetch(API + '/shop/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, new_username: newName })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      // 로컬 상태 갱신
+      username = data.new_username;
+      localStorage.setItem('stockUsername', data.new_username);
+
+      // 현재 닉네임 표시 갱신
+      const curEl = document.getElementById('rename-current');
+      if (curEl) curEl.textContent = data.new_username;
+
+      // 입력창 비우기
+      const inp = document.getElementById('rename-input');
+      if (inp) inp.value = '';
+      const lenEl = document.getElementById('rename-len');
+      if (lenEl) lenEl.textContent = '0/20';
+
+      // 포트폴리오·헤더·비용 미리보기 갱신
+      await fetchPortfolio();
+      await loadRenamePreview();
+
+      showToast(data.message, 'success');
+    } else {
+      if (errEl) errEl.textContent = data.error || '변경 실패';
+    }
+  } catch(e) {
+    if (errEl) errEl.textContent = '서버 오류가 발생했습니다';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '닉네임 변경'; }
   }
 }
 

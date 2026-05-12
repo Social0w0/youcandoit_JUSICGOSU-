@@ -953,6 +953,100 @@ def shop_equip():
 
 
 # -------------------------
+# 닉네임 변경 (총 자산의 15% 소모)
+# -------------------------
+@app.route("/shop/rename", methods=["POST"])
+def shop_rename():
+    """닉네임 변경권 구매 & 즉시 적용. 총 자산의 15%를 현금에서 차감."""
+    data = request.json or {}
+    user_id = data.get("user_id")
+    new_username = (data.get("new_username") or "").strip()
+
+    if not user_id:
+        return jsonify({"error": "잘못된 요청입니다"}), 400
+    if not new_username:
+        return jsonify({"error": "새 닉네임을 입력해주세요"}), 400
+    if len(new_username) > 20:
+        return jsonify({"error": "닉네임은 20자 이내로 입력해주세요"}), 400
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저를 찾을 수 없습니다"}), 404
+
+    # 동일 닉네임 변경 시도
+    if user.username == new_username:
+        return jsonify({"error": "현재 닉네임과 동일합니다"}), 400
+
+    # 중복 닉네임 확인
+    existing = db.session.execute(
+        db.select(User).where(User.username == new_username)
+    ).scalar_one_or_none()
+    if existing:
+        return jsonify({"error": "이미 사용 중인 닉네임입니다"}), 409
+
+    # 총 자산 계산
+    holdings = db.session.execute(
+        db.select(Holding).where(Holding.user_id == user_id)
+    ).scalars().all()
+    total_asset = user.cash
+    for h in holdings:
+        stock = db.session.get(Stock, h.stock_id)
+        if stock:
+            total_asset += stock.price * h.quantity
+
+    fee = total_asset * 0.15  # 총 자산의 15%
+
+    if user.cash < fee:
+        return jsonify({
+            "error": f"현금이 부족합니다 (필요: {int(fee):,}원, 보유 현금: {int(user.cash):,}원)",
+            "fee": round(fee, 2),
+            "cash": round(user.cash, 2),
+        }), 400
+
+    old_username = user.username
+    user.cash -= fee
+    user.username = new_username
+    db.session.commit()
+
+    return jsonify({
+        "message": f"닉네임이 '{old_username}' → '{new_username}'(으)로 변경되었습니다!",
+        "old_username": old_username,
+        "new_username": new_username,
+        "fee": round(fee, 2),
+        "cash": round(user.cash, 2),
+        "total_asset": round(total_asset, 2),
+    })
+
+
+# -------------------------
+# 닉네임 변경 비용 미리보기
+# -------------------------
+@app.route("/shop/rename/preview/<int:user_id>")
+def shop_rename_preview(user_id):
+    """닉네임 변경 시 차감될 비용(총 자산 15%) 미리보기"""
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저를 찾을 수 없습니다"}), 404
+
+    holdings = db.session.execute(
+        db.select(Holding).where(Holding.user_id == user_id)
+    ).scalars().all()
+    total_asset = user.cash
+    for h in holdings:
+        stock = db.session.get(Stock, h.stock_id)
+        if stock:
+            total_asset += stock.price * h.quantity
+
+    fee = total_asset * 0.15
+    return jsonify({
+        "total_asset": round(total_asset, 2),
+        "fee": round(fee, 2),
+        "cash": round(user.cash, 2),
+        "affordable": user.cash >= fee,
+    })
+
+
+# -------------------------
 # 게임 틱 함수들
 # -------------------------
 _tick_counter = 0
