@@ -1419,35 +1419,75 @@ let rankingData = [];
 function renderRanking(data) {
   rankingData = data;
   const list = document.getElementById('ranking-list');
-  if (!data.length) { list.innerHTML = '<div class="empty-state">참가자가 없습니다</div>'; return; }
+
+  if (!data.length) {
+    list.innerHTML = '<div class="empty-state">참가자가 없습니다</div>';
+    return;
+  }
 
   const visible = rankingExpanded ? data : data.slice(0, 5);
   const hasMore = data.length > 5;
 
   list.innerHTML = visible.map((u, i) => {
-    const numClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1;
+
+    const numClass =
+      i === 0 ? 'gold' :
+      i === 1 ? 'silver' :
+      i === 2 ? 'bronze' : '';
+
+    const medal =
+      i === 0 ? '🥇' :
+      i === 1 ? '🥈' :
+      i === 2 ? '🥉' : i + 1;
+
     const isMe = u.username === username;
+
+    const titleStyle = u.title
+      ? (
+          u.title.color.includes('gradient')
+            ? `
+              background:${u.title.color};
+              -webkit-background-clip:text;
+              -webkit-text-fill-color:transparent;
+              background-clip:text;
+              color:transparent;
+            `
+            : `color:${u.title.color};`
+        )
+      : '';
+
     const titleBadge = u.title
-  ? `<span class="rank-title-badge" style="color:${u.title.color}">${u.title.emoji} ${u.title.name}</span>`
-  : '';
-  return `
-    <div class="rank-item ${isMe ? 'rank-me' : ''}" onclick="openOtherProfile('${u.username}')">
-      <div class="rank-num ${numClass}">${medal}</div>
-      <div class="rank-name-wrap">
-        <div class="rank-name-row">
-          <span class="rank-name">${isMe ? '⭐ ' : ''}${u.username}</span>
+      ? `
+        <span class="rank-title-badge" style="${titleStyle}">
+          ${u.title.emoji} ${u.title.name}
+        </span>
+      `
+      : '';
+
+    return `
+      <div class="rank-item ${isMe ? 'rank-me' : ''}" onclick="openOtherProfile('${u.username}')">
+        <div class="rank-num ${numClass}">${medal}</div>
+
+        <div class="rank-name-wrap">
+          <div class="rank-name-row">
+            <span class="rank-name">${isMe ? '⭐ ' : ''}${u.username}</span>
+          </div>
+
+          ${titleBadge}
         </div>
-        ${titleBadge}
+
+        <div class="rank-total">${fmtRank(u.total)}원</div>
       </div>
-      <div class="rank-total">${fmtRank(u.total)}원</div>
-    </div>`;
-    }).join('');
-    
+    `;
+
+  }).join('');
+
   if (hasMore) {
-    list.innerHTML += `<button class="show-more-btn" onclick="toggleRanking()">
-      ${rankingExpanded ? '▲ 접기' : `▼ 더보기 (${data.length - 5}명)`}
-    </button>`;
+    list.innerHTML += `
+      <button class="show-more-btn" onclick="toggleRanking()">
+        ${rankingExpanded ? '▲ 접기' : `▼ 더보기 (${data.length - 5}명)`}
+      </button>
+    `;
   }
 }
 
