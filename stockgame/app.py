@@ -372,8 +372,6 @@ def sell():
             "halt_remaining": remaining
         }), 423
 
-    # ... 기존 로직 동일 ...
-
 
     user = db.session.get(User, user_id)
     stock = db.session.get(Stock, stock_id)
@@ -800,7 +798,7 @@ def update_stock_prices():
     for s in stocks:
         prev_price = s.price  # 변동률 계산용
         
-        change = random.uniform(-0.03, 0.03)
+        change = random.uniform(-0.03, 0.018)
 
         for e in events_by_stock.get(s.id, []):
             change += e.impact * 0.5
@@ -943,17 +941,17 @@ def trigger_event():
     s = random.choice(stocks)
 
     # 20% 확률로 이벤트 발생
-    if random.random() < 0.2:
+    if random.random() < 0.13:
         is_positive = random.random() < 0.5
         event_pool = EVENTS["positive"] if is_positive else EVENTS["negative"]
         title, desc = random.choice(event_pool)
 
         if is_positive:
-            impact = random.choice([0.08, 0.12, 0.15, 0.20])
+            impact = random.choice([0.08, 0.09, 0.10, 0.15])
         else:
             impact = random.choice([-0.08, -0.12, -0.15, -0.20])
 
-        duration = random.randint(3, 8)
+        duration = random.randint(3, 10)
 
         event = Event(
             stock_id=s.id,
@@ -981,7 +979,7 @@ def trigger_event():
         print(f"[EVENT] {s.name}: {title} (impact: {impact:+.0%})")
 
         # 30% 확률로 실적 발표도 함께 생성
-        if random.random() < 0.3:
+        if random.random() < 0.2:
             earnings = generate_earnings(s, is_positive)
             print(f"[EARNINGS] {s.name} {earnings.quarter}: 매출 {earnings.revenue}억, 영업이익 {earnings.operating}억")
 
