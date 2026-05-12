@@ -2,7 +2,8 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Transfer, \
-                   Title, UserProfile, seed_titles, check_and_unlock_titles
+                   Title, UserProfile, seed_titles, check_and_unlock_titles, \
+                   ShopTitle, ShopPurchase, seed_shop_titles
 import random
 from datetime import datetime
 
@@ -62,6 +63,7 @@ recent_events = []
 with app.app_context():
     db.create_all()
     seed_titles()
+    seed_shop_titles()
 
     # DB 마이그레이션: avg_price 컬럼이 없으면 추가
     from sqlalchemy import text, inspect
@@ -81,6 +83,11 @@ with app.app_context():
                 conn.execute(text('ALTER TABLE user_profile ADD COLUMN peak_asset FLOAT DEFAULT 0'))
                 conn.commit()
             print("[MIGRATION] peak_asset 컬럼 추가 완료")
+        if 'equipped_shop_title_id' not in profile_cols:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE user_profile ADD COLUMN equipped_shop_title_id INTEGER DEFAULT NULL'))
+                conn.commit()
+            print("[MIGRATION] equipped_shop_title_id 컬럼 추가 완료")
     except Exception as e:
         print(f"[MIGRATION] user_profile 테이블 없음, 건너뜀: {e}")
 
@@ -555,9 +562,17 @@ def get_profile(user_id):
         if stock:
             total_asset += stock.price * h.quantity
 
+    # 상점 칭호 구매 목록
+    purchased_rows = db.session.execute(
+        db.select(ShopPurchase.shop_title_id).where(ShopPurchase.user_id == user_id)
+    ).scalars().all()
+    purchased_shop_ids = set(purchased_rows)
+    all_shop_titles = ShopTitle.query.order_by(ShopTitle.sort_order).all()
+
     return jsonify({
         "username": user.username,
         "equipped_title_id": profile.equipped_title_id,
+        "equipped_shop_title_id": getattr(profile, 'equipped_shop_title_id', None),
         "equipped_bg": profile.equipped_bg or "default",
         "total_asset": round(total_asset, 2),
         "peak_asset": round(profile.peak_asset or 0, 2),
@@ -569,7 +584,16 @@ def get_profile(user_id):
             "color": t.color,
             "condition_value": t.condition_value,
             "unlocked": t.id in unlocked_ids
-        } for t in all_titles]
+        } for t in all_titles],
+        "shop_titles": [{
+            "id": t.id,
+            "name": t.name,
+            "emoji": t.emoji,
+            "description": t.description,
+            "price": t.price,
+            "color": t.color,
+            "purchased": t.id in purchased_shop_ids,
+        } for t in all_shop_titles],
     })
 
 # -------------------------
@@ -803,6 +827,123 @@ def transfer():
         "fee": round(amount * 0.05, 2),
         "cash": round(sender.cash, 2)
     })
+
+# -------------------------
+# 상점 시스템
+# -------------------------
+@app.route("/shop/titles")
+def get_shop_titles():
+    """상점 칭호 목록 + 유저의 구매 여부 반환"""
+    user_id = request.args.get("user_id", type=int)
+
+    purchased_ids = set()
+    if user_id:
+        rows = db.session.execute(
+            db.select(ShopPurchase.shop_title_id).where(ShopPurchase.user_id == user_id)
+        ).scalars().all()
+        purchased_ids = set(rows)
+
+    titles = db.session.execute(
+        db.select(ShopTitle).order_by(ShopTitle.sort_order)
+    ).scalars().all()
+
+    return jsonify([{
+        "id": t.id,
+        "name": t.name,
+        "emoji": t.emoji,
+        "description": t.description,
+        "price": t.price,
+        "color": t.color,
+        "purchased": t.id in purchased_ids,
+    } for t in titles])
+
+
+@app.route("/shop/buy", methods=["POST"])
+def shop_buy():
+    """상점 칭호 구매"""
+    data = request.json or {}
+    user_id = data.get("user_id")
+    shop_title_id = data.get("shop_title_id")
+
+    if not user_id or not shop_title_id:
+        return jsonify({"error": "잘못된 요청입니다"}), 400
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저를 찾을 수 없습니다"}), 404
+
+    shop_title = db.session.get(ShopTitle, shop_title_id)
+    if not shop_title:
+        return jsonify({"error": "칭호를 찾을 수 없습니다"}), 404
+
+    # 이미 구매했는지 확인
+    already = db.session.execute(
+        db.select(ShopPurchase).where(
+            ShopPurchase.user_id == user_id,
+            ShopPurchase.shop_title_id == shop_title_id
+        )
+    ).scalar_one_or_none()
+    if already:
+        return jsonify({"error": "이미 보유한 칭호입니다"}), 400
+
+    if user.cash < shop_title.price:
+        return jsonify({"error": f"현금이 부족합니다 (필요: {int(shop_title.price):,}원)"}), 400
+
+    # 구매 처리
+    user.cash -= shop_title.price
+    purchase = ShopPurchase(user_id=user_id, shop_title_id=shop_title_id)
+    db.session.add(purchase)
+
+    # UserProfile의 unlocked_title_ids에 상점칭호를 별도 관리하지 않고
+    # 상점칭호는 ShopPurchase에서만 조회. equipped는 profile의 equipped_shop_title_id 사용.
+    # → equipped_shop_title_id 컬럼은 마이그레이션으로 추가
+    db.session.commit()
+
+    return jsonify({
+        "message": f"'{shop_title.emoji} {shop_title.name}' 칭호 구매 완료!",
+        "cash": round(user.cash, 2),
+        "shop_title": {
+            "id": shop_title.id,
+            "name": shop_title.name,
+            "emoji": shop_title.emoji,
+            "color": shop_title.color,
+        }
+    })
+
+
+@app.route("/shop/equip", methods=["POST"])
+def shop_equip():
+    """상점 칭호 장착/해제. 상점 칭호와 업적 칭호는 별도 슬롯."""
+    data = request.json or {}
+    user_id = data.get("user_id")
+    shop_title_id = data.get("shop_title_id")   # None이면 해제
+
+    if not user_id:
+        return jsonify({"error": "잘못된 요청입니다"}), 400
+
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        return jsonify({"error": "프로필을 찾을 수 없습니다"}), 404
+
+    if shop_title_id:
+        # 보유 여부 확인
+        purchase = db.session.execute(
+            db.select(ShopPurchase).where(
+                ShopPurchase.user_id == user_id,
+                ShopPurchase.shop_title_id == shop_title_id
+            )
+        ).scalar_one_or_none()
+        if not purchase:
+            return jsonify({"error": "구매하지 않은 칭호입니다"}), 400
+
+    profile.equipped_shop_title_id = shop_title_id
+    db.session.commit()
+
+    return jsonify({
+        "message": "상점 칭호 장착 완료" if shop_title_id else "상점 칭호 해제 완료",
+        "equipped_shop_title_id": profile.equipped_shop_title_id,
+    })
+
 
 # -------------------------
 # 게임 틱 함수들

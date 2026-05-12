@@ -661,6 +661,43 @@
 
   .empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 14px; }
 
+  /* ── 상점 칭호 카드 ── */
+  .shop-title-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex; align-items: center; gap: 12px;
+    transition: all 0.2s;
+  }
+  .shop-title-card:hover:not(.purchased) { border-color: var(--border2); }
+  .shop-title-card.purchased { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.05); }
+  .shop-title-card-emoji { font-size: 28px; flex-shrink: 0; }
+  .shop-title-card-info { flex: 1; min-width: 0; }
+  .shop-title-card-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .shop-title-card-desc { font-size: 11px; color: var(--muted); }
+  .shop-title-card-price {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+    color: var(--amber); white-space: nowrap; margin-bottom: 8px; text-align: right;
+  }
+  .shop-title-card-right { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+  .btn-shop-buy {
+    background: rgba(124,110,255,0.15);
+    border: 1px solid rgba(124,110,255,0.35);
+    color: var(--accent); font-family: var(--font-body); font-size: 12px; font-weight: 700;
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-shop-buy:hover { background: rgba(124,110,255,0.28); }
+  .btn-shop-owned {
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green); font-family: var(--font-body); font-size: 12px; font-weight: 700;
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-shop-owned:hover { background: rgba(34,197,94,0.2); }
+
   /* ── 더보기 버튼 ── */
   .show-more-btn {
     width: 100%; margin-top: 8px;
@@ -769,6 +806,7 @@
     <div class="topbar-spacer"></div>
     <button class="nav-btn active" id="nav-home" onclick="showMain()">홈</button>
     <button class="nav-btn" id="nav-stocks" onclick="showStocks()">종목</button>
+    <button class="nav-btn" id="nav-shop" onclick="showShop()">상점</button>
     <div class="topbar-user" onclick="openProfileModal()">
       <div class="dot"></div>
       <span id="topbar-title-badge" style="display:none"></span>
@@ -842,6 +880,42 @@
     </div>
     <div id="stock-grid" class="stock-grid">
       <div class="empty-state">로딩 중...</div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div id="panel-shop" style="display:none; max-width:900px; margin:0 auto; padding:24px 20px;">
+    <div class="sec-head">
+      <div class="sec-title">🛒 상점</div>
+    </div>
+
+    <!-- 칭호 섹션 (활성화) -->
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px;">
+      <div class="sec-head" style="margin-bottom:20px;">
+        <div class="sec-title">🏷️ 칭호</div>
+        <div style="font-size:12px; color:var(--muted);">보유 현금: <span id="shop-cash-display" style="font-family:var(--font-mono); color:var(--cyan);">—</span></div>
+      </div>
+      <div id="shop-title-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px;">
+        <div class="empty-state">로딩 중...</div>
+      </div>
+    </div>
+
+    <!-- 배경 섹션 (비활성화) -->
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px; opacity:0.4; pointer-events:none; position:relative;">
+      <div style="position:absolute; top:12px; right:14px; font-size:11px; color:var(--muted); background:var(--bg3); border:1px solid var(--border); padding:3px 10px; border-radius:20px;">준비 중</div>
+      <div class="sec-head" style="margin-bottom:20px;">
+        <div class="sec-title">🖼️ 배경</div>
+      </div>
+      <div style="text-align:center; padding:20px; color:var(--muted); font-size:13px;">곧 업데이트 예정입니다</div>
+    </div>
+
+    <!-- 닉네임 변경권 섹션 (비활성화) -->
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; opacity:0.4; pointer-events:none; position:relative;">
+      <div style="position:absolute; top:12px; right:14px; font-size:11px; color:var(--muted); background:var(--bg3); border:1px solid var(--border); padding:3px 10px; border-radius:20px;">준비 중</div>
+      <div class="sec-head" style="margin-bottom:20px;">
+        <div class="sec-title">✏️ 닉네임 변경권</div>
+      </div>
+      <div style="text-align:center; padding:20px; color:var(--muted); font-size:13px;">곧 업데이트 예정입니다</div>
     </div>
   </div>
 
@@ -1380,8 +1454,10 @@ function showMain() {
   document.getElementById('panel-home').style.display = 'block';
   document.getElementById('panel-stocks').style.display = 'none';
   document.getElementById('panel-detail').style.display = 'none';
+  document.getElementById('panel-shop').style.display = 'none';
   document.getElementById('nav-home').classList.add('active');
   document.getElementById('nav-stocks').classList.remove('active');
+  document.getElementById('nav-shop').classList.remove('active');
   prevPanel = 'home';
 }
 
@@ -1389,9 +1465,23 @@ function showStocks() {
   document.getElementById('panel-home').style.display = 'none';
   document.getElementById('panel-stocks').style.display = 'block';
   document.getElementById('panel-detail').style.display = 'none';
+  document.getElementById('panel-shop').style.display = 'none';
   document.getElementById('nav-home').classList.remove('active');
   document.getElementById('nav-stocks').classList.add('active');
+  document.getElementById('nav-shop').classList.remove('active');
   prevPanel = 'stocks';
+}
+
+function showShop() {
+  document.getElementById('panel-home').style.display = 'none';
+  document.getElementById('panel-stocks').style.display = 'none';
+  document.getElementById('panel-detail').style.display = 'none';
+  document.getElementById('panel-shop').style.display = 'block';
+  document.getElementById('nav-home').classList.remove('active');
+  document.getElementById('nav-stocks').classList.remove('active');
+  document.getElementById('nav-shop').classList.add('active');
+  prevPanel = 'shop';
+  loadShopTitles();
 }
 
 function backFromDetail() {

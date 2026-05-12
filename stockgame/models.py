@@ -100,15 +100,16 @@ class Title(db.Model):
 # equipped_title_id : 현재 장착 중인 Title.id (없으면 NULL)
 # equipped_bg       : 현재 장착 중인 배경 키 (예: "default", "purple", "gold")
 class UserProfile(db.Model):
-    id                 = db.Column(db.Integer, primary_key=True)
-    user_id            = db.Column(db.Integer, db.ForeignKey('user.id'),
-                                   nullable=False, unique=True)
-    unlocked_title_ids = db.Column(db.String(200), default='1')  # 새싹(id=1)은 기본 지급
-    equipped_title_id  = db.Column(db.Integer, db.ForeignKey('title.id'), nullable=True)
-    equipped_bg        = db.Column(db.String(30), default='default')
-    peak_asset         = db.Column(db.Float, default=0)          # 최대 보유 자산
-    updated_at         = db.Column(db.DateTime, default=datetime.utcnow,
-                                   onupdate=datetime.utcnow)
+    id                      = db.Column(db.Integer, primary_key=True)
+    user_id                 = db.Column(db.Integer, db.ForeignKey('user.id'),
+                                        nullable=False, unique=True)
+    unlocked_title_ids      = db.Column(db.String(200), default='1')  # 새싹(id=1)은 기본 지급
+    equipped_title_id       = db.Column(db.Integer, db.ForeignKey('title.id'), nullable=True)
+    equipped_shop_title_id  = db.Column(db.Integer, db.ForeignKey('shop_title.id'), nullable=True)
+    equipped_bg             = db.Column(db.String(30), default='default')
+    peak_asset              = db.Column(db.Float, default=0)          # 최대 보유 자산
+    updated_at              = db.Column(db.DateTime, default=datetime.utcnow,
+                                        onupdate=datetime.utcnow)
 
 
 # ── 칭호 초기 데이터 (app.py의 create_tables() 안에서 호출) ─────────
@@ -137,9 +138,9 @@ TITLE_SEEDS = [
         'id': 3,
         'name': '다이아 투자자',
         'emoji': '💎',
-        'description': '총 자산 1조 원 돌파',
+        'description': '총 자산 10억 원 돌파',
         'condition_type': 'asset',
-        'condition_value': 1_000_000_000_000,
+        'condition_value': 1_000_000_000,
         'color': '#06b6d4',
         'sort_order': 3,
     },
@@ -147,9 +148,9 @@ TITLE_SEEDS = [
         'id': 4,
         'name': '전설의 고수',
         'emoji': '👑',
-        'description': '총 자산 1경 원 돌파',
+        'description': '총 자산 1조 원 돌파',
         'condition_type': 'asset',
-        'condition_value':  1_0000_0000_0000_0000,
+        'condition_value': 1_000_000_000_000,
         'color': '#a855f7',
         'sort_order': 4,
     },
@@ -160,6 +161,130 @@ def seed_titles():
     if Title.query.count() == 0:
         for data in TITLE_SEEDS:
             db.session.add(Title(**data))
+        db.session.commit()
+
+
+# ── 상점 칭호 시스템 ──────────────────────────────────────────────
+
+# 상점에서 현금으로 구매하는 칭호 정의 테이블
+class ShopTitle(db.Model):
+    id          = db.Column(db.Integer, primary_key=True)
+    name        = db.Column(db.String(30), nullable=False)    # "황금 손"
+    emoji       = db.Column(db.String(10), nullable=False)    # "🤑"
+    description = db.Column(db.String(100))                   # "상점에서 구매한 칭호"
+    price       = db.Column(db.Float, nullable=False)         # 구매 가격 (원)
+    color       = db.Column(db.String(20), nullable=False)    # CSS 색상값
+    sort_order  = db.Column(db.Integer, default=0)
+
+
+# 유저의 상점 칭호 구매 기록
+class ShopPurchase(db.Model):
+    id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    shop_title_id  = db.Column(db.Integer, db.ForeignKey('shop_title.id'), nullable=False)
+    purchased_at   = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ── 상점 칭호 초기 데이터 ────────────────────────────────────────
+SHOP_TITLE_SEEDS = [
+    {
+        'id': 1,
+        'name': '황금의 손',
+        'emoji': '🤑',
+        'description': '오르는 주식을 알아보는 눈을 지니셨군요?',
+        'price': 1000_0000,
+        'color': '#f59e0b',
+        'sort_order': 1,
+    },
+    {
+        'id': 2,
+        'name': '열혈 트레이더',
+        'emoji': '🔥',
+        'description': '시장을 불태우는 자',
+        'price': 1500_0000,
+        'color': '#ef4444',
+        'sort_order': 2,
+    },
+    {
+        'id': 3,
+        'name': '다크호스',
+        'emoji': '🐴',
+        'description': '아무도 예측 못할 다크호스',
+        'price': 1_5000_0000,
+        'color': "#38226d83",
+        'sort_order': 3,
+    },
+    {
+        'id': 4,
+        'name': '월스트리트의 해커',
+        'emoji': '💻',
+        'description': '너도 할 수 있다! 주가조작!',
+        'price': 3_0000_0000,
+        'color': '#06b6d4',
+        'sort_order': 4,
+    },
+    {
+        'id': 5,
+        'name': '시장의 설계자',
+        'emoji': '📐',
+        'description': '수학으로 부를 설계하는 자',
+        'price': 5_0000_0000,
+        'color': '#22c55e',
+        'sort_order': 5,
+    },
+    {
+        'id': 6,
+        'name': '개미들의 우상',
+        'emoji': '🐜',
+        'description': '오오.. 개미들의 왕이시여!',
+        'price': 100_0000_0000,
+        'color': "#a05757",
+        'sort_order': 5,
+    },
+    {
+        'id': 7,
+        'name': '하락장의 생존자',
+        'emoji': '😮‍💨',
+        'description': '그날은.. 정말 끔찍했어요!',
+        'price': 10_0000_0000,
+        'color': "#2e76a2",
+        'sort_order': 5,
+    },
+    {
+        'id': 8,
+        'name': '쫒겨난 CEO',
+        'emoji': '🧿',
+        'description': '하지만 주식은 올랐죠?',
+        'price': 10_0000_0000,
+        'color': "#97fff1",
+        'sort_order': 5,
+    },
+    {
+        'id': 9,
+        'name': '투자 고수',
+        'emoji': '🥽',
+        'description': '이 정도 경지라면, 두려울 게 없겠네요!',
+        'price': 1000_0000_0000,
+        'color': "#ffe990",
+        'sort_order': 5,
+    },
+    {
+        'id': 10,
+        'name': '주식의 신',
+        'emoji': '🎖️',
+        'description': '정점',
+        'price': 1_0000_0000_0000_0000,
+        'color': "#0000ff",
+        'sort_order': 6,
+    },
+]
+
+
+def seed_shop_titles():
+    """앱 시작 시 ShopTitle 테이블에 초기 데이터가 없으면 삽입."""
+    if ShopTitle.query.count() == 0:
+        for data in SHOP_TITLE_SEEDS:
+            db.session.add(ShopTitle(**data))
         db.session.commit()
 
 
