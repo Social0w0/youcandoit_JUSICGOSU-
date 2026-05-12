@@ -99,6 +99,17 @@ with app.app_context():
             conn.commit()
         print("[MIGRATION] password 컬럼 추가 완료")
 
+    # username 컬럼 길이 마이그레이션 (VARCHAR(20) → VARCHAR(50))
+    user_cols_info = inspector.get_columns('user')
+    username_col = next((c for c in user_cols_info if c['name'] == 'username'), None)
+    if username_col:
+        col_type = str(username_col['type'])  # e.g. 'VARCHAR(20)'
+        if '20' in col_type:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE "user" ALTER COLUMN username TYPE VARCHAR(50)'))
+                conn.commit()
+            print("[MIGRATION] username 컬럼 VARCHAR(20) → VARCHAR(50) 변경 완료")
+
     # 종목 목록 - 새 종목은 여기에 추가하면 자동으로 DB에 반영됨
     STOCK_LIST = [
         dict(name="오성전자",           ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
