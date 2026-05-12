@@ -230,7 +230,7 @@ SHOP_TITLE_SEEDS = [
         'description': '아저씨는 왜 집이 없어요??',
         'price': 5000_0000,
         'color': "#ffb5b5",
-        'sort_order': 2,
+        'sort_order': 3,
     },
     {
         'id': 3,
@@ -338,7 +338,7 @@ SHOP_TITLE_SEEDS = [
         'description': '정점',
         'price': 1_0000_0000_0000_0000,
         'color': "#0000ff",
-        'sort_order': 9,
+        'sort_order': 8,
     },
 
 ]
