@@ -1013,7 +1013,7 @@ def shop_rename():
         if stock:
             total_asset += stock.price * h.quantity
 
-    fee = 1000000 + total_asset * 0.15  # 총 자산의 15%
+    fee = 100_0000 + total_asset * 0.15  # 총 자산의 15%
 
     if user.cash < fee:
         return jsonify({
