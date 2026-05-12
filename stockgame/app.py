@@ -108,6 +108,16 @@ with app.app_context():
     except Exception as e:
         print(f"[MIGRATION] username 컬럼 변경 건너뜀: {e}")
 
+    # color 컬럼 길이 마이그레이션
+    try:
+        with db.engine.connect() as conn:
+            conn.execute(text('ALTER TABLE shop_title ALTER COLUMN color TYPE VARCHAR(100)'))
+            conn.execute(text('ALTER TABLE title ALTER COLUMN color TYPE VARCHAR(100)'))
+            conn.commit()
+        print("[MIGRATION] color 컬럼 VARCHAR(100) 변경 완료")
+    except Exception as e:
+        print(f"[MIGRATION] color 컬럼 변경 건너뜀: {e}")
+
     # 종목 목록 - 새 종목은 여기에 추가하면 자동으로 DB에 반영됨
     STOCK_LIST = [
         dict(name="오성전자",           ticker="005930", price=1000, description="대한민국 대표 반도체·가전 기업"),
