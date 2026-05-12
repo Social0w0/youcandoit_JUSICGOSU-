@@ -274,7 +274,7 @@ SHOP_TITLE_SEEDS = [
         'emoji': '🎖️',
         'description': '정점',
         'price': 1_0000_0000_0000_0000,
-        'color': "linear-gradient(90deg, #ffffff, #0000ff, #ffffff)",
+        'color': "#0000ff",
         'sort_order': 6,
     },
     {
@@ -283,7 +283,7 @@ SHOP_TITLE_SEEDS = [
         'emoji': '😎',
         'description': '나 지금... 떨고 있니?',
         'price': 70_0000_0000,
-        'color': "linear-gradient(90deg, #ffffff, #000000, #ffffff)",
+        'color': "#9fff31",
         'sort_order': 7,
     },
 ]
