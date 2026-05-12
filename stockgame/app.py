@@ -514,10 +514,17 @@ def ranking():
 
     def get_equipped_title(user_id):
         profile = UserProfile.query.filter_by(user_id=user_id).first()
-        if not profile or not profile.equipped_title_id:
+        if not profile:
             return None
-        t = db.session.get(Title, profile.equipped_title_id)
-        return {"name": t.name, "emoji": t.emoji, "color": t.color} if t else None
+        # 상점 칭호 우선, 없으면 업적 칭호
+        shop_title_id = getattr(profile, 'equipped_shop_title_id', None)
+        if shop_title_id:
+            t = db.session.get(ShopTitle, shop_title_id)
+            return {"name": t.name, "emoji": t.emoji, "color": t.color} if t else None
+        if profile.equipped_title_id:
+            t = db.session.get(Title, profile.equipped_title_id)
+            return {"name": t.name, "emoji": t.emoji, "color": t.color} if t else None
+        return None
 
     ranking_list = [{
         "username": u.username,

@@ -1814,7 +1814,8 @@ async function executeTransfer() {
 
 // ── 프로필 ──
 let profileData = null;
-let pendingTitleId = undefined;
+let pendingTitleId = undefined;      // 업적 칭호 선택 (undefined=미변경, null=해제, number=id)
+let pendingShopTitleId = undefined;  // 상점 칭호 선택 (undefined=미변경, null=해제, number=id)
 let pendingBg = null;
 
 const BG_SWATCHES = [
@@ -1838,7 +1839,7 @@ async function loadProfileOnLogin() {
     const res = await fetch(API + `/profile/${userId}`);
     profileData = await res.json();
     applyBackground(profileData.equipped_bg);
-    updateTopbarTitle(profileData.equipped_title_id);
+    updateTopbarTitle();
   } catch(e) {}
 }
 
@@ -1848,6 +1849,7 @@ async function openProfileModal() {
   document.getElementById('profile-view-main').style.display = 'block';
   document.getElementById('profile-view-edit').style.display = 'none';
   pendingTitleId = undefined;
+  pendingShopTitleId = undefined;
   pendingBg = null;
   try {
     const res = await fetch(API + `/profile/${userId}`);
@@ -1871,9 +1873,14 @@ function renderProfileMainView() {
   const headerBg = document.getElementById('profile-header-bg');
   headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
 
-  // 칭호 뱃지 + 닉네임
-  const titleId = profileData.equipped_title_id;
-  const equippedTitle = titleId ? profileData.titles.find(t => t.id === titleId) : null;
+  // 칭호 뱃지 + 닉네임 (상점 칭호 우선, 없으면 업적 칭호)
+  let equippedTitle = null;
+  if (profileData.equipped_shop_title_id) {
+    equippedTitle = (profileData.shop_titles || []).find(t => t.id === profileData.equipped_shop_title_id);
+  }
+  if (!equippedTitle && profileData.equipped_title_id) {
+    equippedTitle = (profileData.titles || []).find(t => t.id === profileData.equipped_title_id);
+  }
 
   const badge = document.getElementById('profile-main-title-badge');
   const uname = document.getElementById('profile-main-username');
@@ -1908,6 +1915,7 @@ function openProfileEdit() {
   document.getElementById('profile-view-main').style.display = 'none';
   document.getElementById('profile-view-edit').style.display = 'block';
   pendingTitleId = undefined;
+  pendingShopTitleId = undefined;
   pendingBg = null;
   renderProfileEditView();
 }
@@ -1919,17 +1927,25 @@ function closeProfileEdit() {
 
 function renderProfileEditView() {
   if (!profileData) return;
-  const equippedTitleId = pendingTitleId !== undefined ? pendingTitleId : profileData.equipped_title_id;
-  const equippedBg      = pendingBg !== null ? pendingBg : profileData.equipped_bg;
 
-  // 칭호 그리드
+  // ── 현재 장착 중인 칭호 결정 (업적/상점 통합 슬롯) ──
+  // pending 값이 있으면 우선. 없으면 서버 데이터.
+  // pendingTitleId/pendingShopTitleId 중 하나가 선택되면 다른 쪽은 자동 해제.
+  const equippedTitleId     = pendingTitleId !== undefined     ? pendingTitleId     : profileData.equipped_title_id;
+  const equippedShopTitleId = pendingShopTitleId !== undefined ? pendingShopTitleId : profileData.equipped_shop_title_id;
+  const equippedBg          = pendingBg !== null ? pendingBg : profileData.equipped_bg;
+
+  // ── 칭호 그리드 (업적 + 상점 통합) ──
   const grid = document.getElementById('profile-title-grid');
-  grid.innerHTML = profileData.titles.map(t => {
-    const isEquipped = t.id === equippedTitleId;
-    const isLocked   = !t.unlocked;
+
+  // 업적 칭호 카드
+  const achievementCards = (profileData.titles || []).map(t => {
+    const isEquipped = (t.id === equippedTitleId) && (pendingShopTitleId === undefined ? !profileData.equipped_shop_title_id : !pendingShopTitleId);
+    const isEquippedSimple = t.id === equippedTitleId && !equippedShopTitleId;
+    const isLocked = !t.unlocked;
     return `
-      <div class="title-card ${isEquipped ? 'equipped' : ''} ${isLocked ? 'locked' : ''}"
-           onclick="${isLocked ? '' : `selectTitle(${t.id})`}"
+      <div class="title-card ${isEquippedSimple ? 'equipped' : ''} ${isLocked ? 'locked' : ''}"
+           onclick="${isLocked ? '' : `selectTitle(${t.id}, 'achievement')`}"
            title="${isLocked ? '조건 미달성' : t.description}">
         <div class="title-card-emoji">${t.emoji}</div>
         <div class="title-card-info">
@@ -1937,11 +1953,34 @@ function renderProfileEditView() {
           <div class="title-card-desc">${isLocked ? fmt(t.condition_value) + '원 달성 시 해금' : t.description}</div>
         </div>
         ${isLocked ? '<span style="margin-left:auto;font-size:14px">🔒</span>' : ''}
-        ${isEquipped ? '<span style="margin-left:auto;font-size:14px">✓</span>' : ''}
+        ${isEquippedSimple ? '<span style="margin-left:auto;font-size:14px;color:var(--accent)">✓</span>' : ''}
       </div>`;
-  }).join('');
+  });
 
-  // 배경 스와치
+  // 상점 칭호 카드 (구매한 것만)
+  const shopCards = (profileData.shop_titles || []).filter(t => t.purchased).map(t => {
+    const isEquipped = t.id === equippedShopTitleId;
+    return `
+      <div class="title-card ${isEquipped ? 'equipped' : ''}"
+           onclick="selectTitle(${t.id}, 'shop')"
+           title="${t.description}">
+        <div class="title-card-emoji">${t.emoji}</div>
+        <div class="title-card-info">
+          <div class="title-card-name" style="color:${t.color}">${t.name}
+            <span style="font-size:10px;opacity:0.6;margin-left:4px;">🛒</span>
+          </div>
+          <div class="title-card-desc">${t.description}</div>
+        </div>
+        ${isEquipped ? '<span style="margin-left:auto;font-size:14px;color:var(--accent)">✓</span>' : ''}
+      </div>`;
+  });
+
+  const allCards = [...achievementCards, ...shopCards];
+  grid.innerHTML = allCards.length
+    ? allCards.join('')
+    : '<div class="empty-state" style="grid-column:1/-1">보유한 칭호가 없습니다</div>';
+
+  // ── 배경 스와치 ──
   const bgGrid = document.getElementById('profile-bg-grid');
   bgGrid.innerHTML = BG_SWATCHES.map(b => `
     <div class="bg-swatch ${equippedBg === b.key ? 'equipped' : ''}"
@@ -1950,9 +1989,18 @@ function renderProfileEditView() {
   `).join('');
 }
 
-function selectTitle(titleId) {
-  const equippedTitleId = pendingTitleId !== undefined ? pendingTitleId : profileData.equipped_title_id;
-  pendingTitleId = (titleId === equippedTitleId) ? null : titleId;
+function selectTitle(titleId, type) {
+  if (type === 'shop') {
+    // 상점 칭호 선택 → 업적 칭호 해제
+    const currentShop = pendingShopTitleId !== undefined ? pendingShopTitleId : profileData.equipped_shop_title_id;
+    pendingShopTitleId = (titleId === currentShop) ? null : titleId;
+    pendingTitleId = null;  // 업적 칭호 해제
+  } else {
+    // 업적 칭호 선택 → 상점 칭호 해제
+    const currentAchieve = pendingTitleId !== undefined ? pendingTitleId : profileData.equipped_title_id;
+    pendingTitleId = (titleId === currentAchieve) ? null : titleId;
+    pendingShopTitleId = null;  // 상점 칭호 해제
+  }
   renderProfileEditView();
 }
 
@@ -1962,31 +2010,68 @@ function selectBg(bgKey) {
 }
 
 async function saveProfile() {
-  if (pendingTitleId === undefined && pendingBg === null) {
-    closeProfileEdit();
-    return;
-  }
-  const body = {};
-  if (pendingTitleId !== undefined) body.title_id = pendingTitleId;
-  if (pendingBg !== null) body.bg = pendingBg;
+  const nothingChanged = pendingTitleId === undefined && pendingShopTitleId === undefined && pendingBg === null;
+  if (nothingChanged) { closeProfileEdit(); return; }
 
   try {
-    const res = await fetch(API + `/profile/${userId}/equip`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (res.ok) {
-      profileData.equipped_title_id = data.equipped_title_id;
-      profileData.equipped_bg       = data.equipped_bg;
-      applyBackground(data.equipped_bg);
-      updateTopbarTitle(data.equipped_title_id);
-      closeProfileEdit();
-      renderProfileMainView();
-      showToast('프로필 저장 완료!', 'success');
-    } else {
-      showToast(data.error || '저장 실패', 'error');
+    // ── 1) 업적 칭호 + 배경 저장 ──
+    if (pendingTitleId !== undefined || pendingBg !== null) {
+      const body = {};
+      if (pendingTitleId !== undefined) body.title_id = pendingTitleId;
+      if (pendingBg !== null) body.bg = pendingBg;
+      const res = await fetch(API + `/profile/${userId}/equip`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        profileData.equipped_title_id = data.equipped_title_id;
+        profileData.equipped_bg       = data.equipped_bg;
+        applyBackground(data.equipped_bg);
+      } else {
+        showToast(data.error || '저장 실패', 'error');
+        return;
+      }
     }
+
+    // ── 2) 상점 칭호 저장 ──
+    if (pendingShopTitleId !== undefined) {
+      const res2 = await fetch(API + '/shop/equip', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, shop_title_id: pendingShopTitleId })
+      });
+      const data2 = await res2.json();
+      if (res2.ok) {
+        profileData.equipped_shop_title_id = data2.equipped_shop_title_id;
+        // 상점 칭호 장착 시 업적 칭호 서버도 해제 (단일 슬롯 보장)
+        if (pendingShopTitleId && pendingTitleId === undefined) {
+          // 업적 칭호를 명시 변경 안 했지만 상점칭호를 켰으면 업적칭호 해제
+          await fetch(API + `/profile/${userId}/equip`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title_id: null })
+          });
+          profileData.equipped_title_id = null;
+        }
+      } else {
+        showToast(data2.error || '상점 칭호 저장 실패', 'error');
+        return;
+      }
+    }
+
+    // ── 3) 상점 칭호 장착 시 업적 칭호 해제, 반대도 동일 ──
+    // pendingTitleId가 지정됐고 상점칭호를 명시적으로 건드리지 않은 경우 상점칭호도 해제
+    if (pendingTitleId !== undefined && pendingTitleId !== null && pendingShopTitleId === undefined && profileData.equipped_shop_title_id) {
+      await fetch(API + '/shop/equip', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, shop_title_id: null })
+      });
+      profileData.equipped_shop_title_id = null;
+    }
+
+    updateTopbarTitle();
+    closeProfileEdit();
+    renderProfileMainView();
+    showToast('프로필 저장 완료!', 'success');
   } catch(e) {
     showToast('서버 오류', 'error');
   }
@@ -1996,10 +2081,19 @@ function applyBackground(bgKey) {
   document.body.className = bgKey && bgKey !== 'default' ? `bg-${bgKey}` : '';
 }
 
-function updateTopbarTitle(titleId) {
+function updateTopbarTitle() {
   const badge = document.getElementById('topbar-title-badge');
-  if (!titleId || !profileData) { badge.style.display = 'none'; return; }
-  const t = profileData.titles.find(x => x.id === titleId);
+  if (!profileData) { badge.style.display = 'none'; return; }
+
+  // 상점 칭호 우선, 없으면 업적 칭호
+  let t = null;
+  if (profileData.equipped_shop_title_id) {
+    t = (profileData.shop_titles || []).find(x => x.id === profileData.equipped_shop_title_id);
+  }
+  if (!t && profileData.equipped_title_id) {
+    t = (profileData.titles || []).find(x => x.id === profileData.equipped_title_id);
+  }
+
   if (!t) { badge.style.display = 'none'; return; }
   badge.textContent = `${t.emoji} ${t.name}`;
   badge.style.cssText = `display:inline; font-size:11px; font-weight:700; color:${t.color};

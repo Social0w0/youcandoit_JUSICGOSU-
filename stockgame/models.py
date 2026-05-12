@@ -281,11 +281,15 @@ SHOP_TITLE_SEEDS = [
 
 
 def seed_shop_titles():
-    """앱 시작 시 ShopTitle 테이블에 초기 데이터가 없으면 삽입."""
-    if ShopTitle.query.count() == 0:
-        for data in SHOP_TITLE_SEEDS:
+    existing_ids = {
+        t.id for t in ShopTitle.query.all()
+    }
+
+    for data in SHOP_TITLE_SEEDS:
+        if data['id'] not in existing_ids:
             db.session.add(ShopTitle(**data))
-        db.session.commit()
+
+    db.session.commit()
 
 
 # ── 칭호 자동 지급 헬퍼 (app.py의 매수/매도/포트폴리오 API에서 호출) ─
