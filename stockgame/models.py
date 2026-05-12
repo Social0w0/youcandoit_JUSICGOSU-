@@ -90,7 +90,7 @@ class Title(db.Model):
     description    = db.Column(db.String(100))                  # "총 자산 1억 원 돌파"
     condition_type = db.Column(db.String(20), nullable=False)   # "asset"
     condition_value= db.Column(db.Float, nullable=False)        # 100_000_000
-    color          = db.Column(db.String(20), nullable=False)   # CSS 색상값 (예: "#f59e0b")
+    color          = db.Column(db.String(100), nullable=False)   # CSS 색상값 (예: "#f59e0b")
     sort_order     = db.Column(db.Integer, default=0)           # 표시 순서 (낮을수록 먼저)
 
 
