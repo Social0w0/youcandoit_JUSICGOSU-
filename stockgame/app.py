@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Transfer
+
+from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Transfer, \
+                   Title, UserProfile, seed_titles, check_and_unlock_titles
 import random
 from datetime import datetime
 
@@ -59,6 +61,7 @@ recent_events = []
 # -------------------------
 with app.app_context():
     db.create_all()
+    seed_titles()
 
     # DB 마이그레이션: avg_price 컬럼이 없으면 추가
     from sqlalchemy import text, inspect
@@ -69,6 +72,17 @@ with app.app_context():
             conn.execute(text('ALTER TABLE holding ADD COLUMN avg_price FLOAT DEFAULT 0'))
             conn.commit()
         print("[MIGRATION] avg_price 컬럼 추가 완료")
+
+    # peak_asset 컬럼 마이그레이션
+    try:
+        profile_cols = [c['name'] for c in inspector.get_columns('user_profile')]
+        if 'peak_asset' not in profile_cols:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE user_profile ADD COLUMN peak_asset FLOAT DEFAULT 0'))
+                conn.commit()
+            print("[MIGRATION] peak_asset 컬럼 추가 완료")
+    except Exception as e:
+        print(f"[MIGRATION] user_profile 테이블 없음, 건너뜀: {e}")
 
     # password 컬럼 마이그레이션
     user_cols = [c['name'] for c in inspector.get_columns('user')]
@@ -318,10 +332,22 @@ def buy():
         db.session.add(holding)
 
     db.session.commit()
+
+    # ── 칭호 자동 지급 체크 ──
+    holdings_all = db.session.execute(
+        db.select(Holding).where(Holding.user_id == user_id)
+    ).scalars().all()
+    total_asset = user.cash + sum(
+        db.session.get(Stock, h.stock_id).price * h.quantity
+        for h in holdings_all
+    )
+    newly = check_and_unlock_titles(user_id, total_asset)
+
     return jsonify({
         "message": f"{stock.name} {qty}주 매수 완료",
         "cash": round(user.cash, 2),
-        "total_cost": round(cost, 2)
+        "total_cost": round(cost, 2),
+        "new_titles": [{"name": t.name, "emoji": t.emoji, "color": t.color} for t in newly]
     })
 
 # -------------------------
@@ -373,10 +399,22 @@ def sell():
         db.session.delete(holding)
 
     db.session.commit()
+
+    # ── 칭호 자동 지급 체크 ──
+    holdings_all = db.session.execute(
+        db.select(Holding).where(Holding.user_id == user_id)
+    ).scalars().all()
+    total_asset = user.cash + sum(
+        db.session.get(Stock, h.stock_id).price * h.quantity
+        for h in holdings_all
+    )
+    newly = check_and_unlock_titles(user_id, total_asset)
+
     return jsonify({
         "message": f"{stock.name} {qty}주 매도 완료",
         "cash": round(user.cash, 2),
-        "revenue": round(revenue, 2)
+        "revenue": round(revenue, 2),
+        "new_titles": [{"name": t.name, "emoji": t.emoji, "color": t.color} for t in newly]
     })
 
 # -------------------------
@@ -457,14 +495,123 @@ def ranking():
         price = stocks_map.get(h.stock_id, 0)
         stock_values[h.user_id] = stock_values.get(h.user_id, 0) + price * h.quantity
 
+    def get_equipped_title(user_id):
+        profile = UserProfile.query.filter_by(user_id=user_id).first()
+        if not profile or not profile.equipped_title_id:
+            return None
+        t = db.session.get(Title, profile.equipped_title_id)
+        return {"name": t.name, "emoji": t.emoji, "color": t.color} if t else None
+
     ranking_list = [{
         "username": u.username,
         "total": round(u.cash + stock_values.get(u.id, 0), 2),
-        "cash": round(u.cash, 2)
+        "cash": round(u.cash, 2),
+        "title": get_equipped_title(u.id),
+        "bg": (UserProfile.query.filter_by(user_id=u.id).first() or UserProfile()).equipped_bg or "default"
     } for u in users]
 
     ranking_list.sort(key=lambda x: x["total"], reverse=True)
     return jsonify(ranking_list)
+
+
+# -------------------------
+# 프로필 조회
+# -------------------------
+@app.route("/profile/<int:user_id>")
+def get_profile(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저 없음"}), 404
+
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        # 프로필 없으면 새싹 기본 지급하며 생성
+        profile = UserProfile(user_id=user_id, unlocked_title_ids='1')
+        db.session.add(profile)
+        db.session.commit()
+
+    unlocked_ids = set(
+        int(x) for x in profile.unlocked_title_ids.split(',') if x.strip()
+    )
+    all_titles = Title.query.order_by(Title.sort_order).all()
+
+    # 현재 총 자산 계산
+    holdings = db.session.execute(
+        db.select(Holding).where(Holding.user_id == user_id)
+    ).scalars().all()
+    total_asset = user.cash
+    for h in holdings:
+        stock = db.session.get(Stock, h.stock_id)
+        if stock:
+            total_asset += stock.price * h.quantity
+
+    return jsonify({
+        "username": user.username,
+        "equipped_title_id": profile.equipped_title_id,
+        "equipped_bg": profile.equipped_bg or "default",
+        "total_asset": round(total_asset, 2),
+        "peak_asset": round(profile.peak_asset or 0, 2),
+        "titles": [{
+            "id": t.id,
+            "name": t.name,
+            "emoji": t.emoji,
+            "description": t.description,
+            "color": t.color,
+            "condition_value": t.condition_value,
+            "unlocked": t.id in unlocked_ids
+        } for t in all_titles]
+    })
+
+# -------------------------
+# 유저명으로 프로필 조회 (랭킹 클릭용)
+# -------------------------
+@app.route("/profile/by_username/<string:uname>")
+def get_profile_by_username(uname):
+    user = db.session.execute(
+        db.select(User).where(User.username == uname)
+    ).scalar_one_or_none()
+    if not user:
+        return jsonify({"error": "유저 없음"}), 404
+    return get_profile(user.id)
+
+# -------------------------
+# 칭호/배경 장착
+# -------------------------
+@app.route("/profile/<int:user_id>/equip", methods=["POST"])
+def equip_profile(user_id):
+    data = request.json or {}
+    title_id = data.get("title_id")   # None이면 칭호 해제
+    bg = data.get("bg")               # None이면 배경 변경 안 함
+
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        profile = UserProfile(user_id=user_id, unlocked_title_ids='1')
+        db.session.add(profile)
+        db.session.flush()
+
+    # 칭호 장착 변경
+    if "title_id" in data:
+        if title_id is None:
+            profile.equipped_title_id = None
+        else:
+            unlocked_ids = set(
+                int(x) for x in profile.unlocked_title_ids.split(',') if x.strip()
+            )
+            if title_id not in unlocked_ids:
+                return jsonify({"error": "보유하지 않은 칭호입니다"}), 403
+            profile.equipped_title_id = title_id
+
+    # 배경 변경
+    if bg is not None:
+        allowed_bgs = {"default", "purple", "gold", "green", "red"}
+        if bg not in allowed_bgs:
+            return jsonify({"error": "유효하지 않은 배경입니다"}), 400
+        profile.equipped_bg = bg
+
+    db.session.commit()
+    return jsonify({"message": "프로필 업데이트 완료",
+                    "equipped_title_id": profile.equipped_title_id,
+                    "equipped_bg": profile.equipped_bg})
 
 # -------------------------
 # 실적 발표 조회

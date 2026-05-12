@@ -1118,8 +1118,8 @@ function renderNewsFeed() {
     return;
   }
 
-  const visible = newsExpanded ? newsFeed : newsFeed.slice(0, 5);
-  const hasMore = newsFeed.length > 5;
+  const visible = newsExpanded ? newsFeed : newsFeed.slice(0, 3);
+  const hasMore = newsFeed.length > 3;
 
   const newsHtml = visible.map(ev => {
     const isPos = ev.type === 'positive';
@@ -1152,19 +1152,21 @@ function toggleNews() {
 function fmt(n) {
   n = Math.floor(n);
 
-  const jo = Math.floor(n / 1_0000_0000_0000);
-  const eok = Math.floor((n % 1_0000_0000_0000) / 1_0000_0000);
-  const man = Math.floor((n % 1_0000_0000) / 10000);
+  const gyeong = Math.floor(n / 1_0000_0000_0000_0000); // 경
+  const jo = Math.floor((n % 1_0000_0000_0000_0000) / 1_0000_0000_0000); // 조
+  const eok = Math.floor((n % 1_0000_0000_0000) / 1_0000_0000); // 억
+  const man = Math.floor((n % 1_0000_0000) / 10000); // 만
   const rest = n % 10000;
 
   let result = "";
 
+  if (gyeong > 0) result += `${gyeong}경 `;
   if (jo > 0) result += `${jo}조 `;
   if (eok > 0) result += `${eok}억 `;
   if (man > 0) result += `${man}만 `;
   if (rest > 0) result += `${rest.toLocaleString()}`;
 
-  return result.trim();
+  return result.trim() || "0";
 }
 
 function renderPortfolio() {
@@ -1616,11 +1618,26 @@ async function executeTransfer() {
   }
 }
 
-// 커밋용
 // ── 프로필 ──
-let profileData = null;  // 서버에서 불러온 프로필
-let pendingTitleId = undefined;  // undefined = 변경 없음, null = 해제, number = 장착
+let profileData = null;
+let pendingTitleId = undefined;
 let pendingBg = null;
+
+const BG_SWATCHES = [
+  { key: 'default', label: '기본',  style: 'background:#1a1a24; border-color:#444' },
+  { key: 'purple',  label: '보라',  style: 'background:linear-gradient(135deg,#3a1a5e,#1a1a24)' },
+  { key: 'gold',    label: '골드',  style: 'background:linear-gradient(135deg,#3a2a00,#1a1a24)' },
+  { key: 'green',   label: '초록',  style: 'background:linear-gradient(135deg,#003a1a,#1a1a24)' },
+  { key: 'red',     label: '레드',  style: 'background:linear-gradient(135deg,#3a0000,#1a1a24)' },
+];
+
+const BG_HEADER_STYLES = {
+  default: 'background: linear-gradient(135deg, #22222f 0%, #1a1a24 100%);',
+  purple:  'background: linear-gradient(135deg, #3a1a5e 0%, #1a1a24 100%);',
+  gold:    'background: linear-gradient(135deg, #3a2a00 0%, #1a1a24 100%);',
+  green:   'background: linear-gradient(135deg, #003a1a 0%, #1a1a24 100%);',
+  red:     'background: linear-gradient(135deg, #3a0000 0%, #1a1a24 100%);',
+};
 
 async function loadProfileOnLogin() {
   try {
@@ -1631,22 +1648,17 @@ async function loadProfileOnLogin() {
   } catch(e) {}
 }
 
-const BG_SWATCHES = [
-  { key: 'default', label: '기본',  style: 'background:#1a1a24; border-color:#444' },
-  { key: 'purple',  label: '보라',  style: 'background:linear-gradient(135deg,#3a1a5e,#1a1a24)' },
-  { key: 'gold',    label: '골드',  style: 'background:linear-gradient(135deg,#3a2a00,#1a1a24)' },
-  { key: 'green',   label: '초록',  style: 'background:linear-gradient(135deg,#003a1a,#1a1a24)' },
-  { key: 'red',     label: '레드',  style: 'background:linear-gradient(135deg,#3a0000,#1a1a24)' },
-];
-
 async function openProfileModal() {
   document.getElementById('profile-modal').style.display = 'block';
+  // 메인 뷰 표시, 수정 뷰 숨김
+  document.getElementById('profile-view-main').style.display = 'block';
+  document.getElementById('profile-view-edit').style.display = 'none';
   pendingTitleId = undefined;
   pendingBg = null;
   try {
     const res = await fetch(API + `/profile/${userId}`);
     profileData = await res.json();
-    renderProfileModal();
+    renderProfileMainView();
   } catch(e) {
     console.error('프로필 로드 실패', e);
   }
@@ -1657,7 +1669,61 @@ function closeProfileModal(e) {
   document.getElementById('profile-modal').style.display = 'none';
 }
 
-function renderProfileModal() {
+function renderProfileMainView() {
+  if (!profileData) return;
+  const bgKey = profileData.equipped_bg || 'default';
+
+  // 헤더 배경
+  const headerBg = document.getElementById('profile-header-bg');
+  headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
+
+  // 칭호 뱃지 + 닉네임
+  const titleId = profileData.equipped_title_id;
+  const equippedTitle = titleId ? profileData.titles.find(t => t.id === titleId) : null;
+
+  const badge = document.getElementById('profile-main-title-badge');
+  const uname = document.getElementById('profile-main-username');
+
+  if (equippedTitle) {
+    badge.textContent = `${equippedTitle.emoji} ${equippedTitle.name}`;
+    badge.style.cssText = `font-size:12px; font-weight:700; color:${equippedTitle.color}; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;`;
+    uname.style.fontSize = profileData.username.length > 10 ? '18px' : '24px';
+  } else {
+    badge.textContent = '';
+    badge.style.cssText = '';
+    uname.style.fontSize = profileData.username.length > 10 ? '18px' : '24px';
+  }
+  uname.textContent = profileData.username;
+
+  // 자산 수치 (폰트 크기 유동 적용)
+  const nowEl = document.getElementById('profile-asset-now');
+  const peakEl = document.getElementById('profile-asset-peak');
+  const nowVal = fmt(profileData.total_asset || 0) + '원';
+  const peakVal = fmt(profileData.peak_asset || 0) + '원';
+  nowEl.textContent = nowVal;
+  nowEl.style.fontSize = nowVal.length > 14 ? '12px' : '15px';
+  peakEl.textContent = peakVal;
+  peakEl.style.fontSize = peakVal.length > 14 ? '12px' : '15px';
+
+  // 내 프로필 - 수정 버튼 표시
+  const editBtn = document.getElementById('profile-edit-btn');
+  if (editBtn) editBtn.style.display = 'block';
+}
+
+function openProfileEdit() {
+  document.getElementById('profile-view-main').style.display = 'none';
+  document.getElementById('profile-view-edit').style.display = 'block';
+  pendingTitleId = undefined;
+  pendingBg = null;
+  renderProfileEditView();
+}
+
+function closeProfileEdit() {
+  document.getElementById('profile-view-edit').style.display = 'none';
+  document.getElementById('profile-view-main').style.display = 'block';
+}
+
+function renderProfileEditView() {
   if (!profileData) return;
   const equippedTitleId = pendingTitleId !== undefined ? pendingTitleId : profileData.equipped_title_id;
   const equippedBg      = pendingBg !== null ? pendingBg : profileData.equipped_bg;
@@ -1692,19 +1758,18 @@ function renderProfileModal() {
 
 function selectTitle(titleId) {
   const equippedTitleId = pendingTitleId !== undefined ? pendingTitleId : profileData.equipped_title_id;
-  // 이미 장착 중이면 해제
   pendingTitleId = (titleId === equippedTitleId) ? null : titleId;
-  renderProfileModal();
+  renderProfileEditView();
 }
 
 function selectBg(bgKey) {
   pendingBg = bgKey;
-  renderProfileModal();
+  renderProfileEditView();
 }
 
 async function saveProfile() {
   if (pendingTitleId === undefined && pendingBg === null) {
-    closeProfileModal();
+    closeProfileEdit();
     return;
   }
   const body = {};
@@ -1722,7 +1787,8 @@ async function saveProfile() {
       profileData.equipped_bg       = data.equipped_bg;
       applyBackground(data.equipped_bg);
       updateTopbarTitle(data.equipped_title_id);
-      closeProfileModal();
+      closeProfileEdit();
+      renderProfileMainView();
       showToast('프로필 저장 완료!', 'success');
     } else {
       showToast(data.error || '저장 실패', 'error');
@@ -1746,7 +1812,6 @@ function updateTopbarTitle(titleId) {
     background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px; margin-right:4px;`;
 }
 
-// 매수/매도 후 new_titles 처리 — executeTrade 안의 showToast 바로 뒤에 추가
 function handleNewTitles(newTitles) {
   if (!newTitles || !newTitles.length) return;
   newTitles.forEach((t, i) => {
@@ -1761,8 +1826,61 @@ function handleNewTitles(newTitles) {
       setTimeout(() => { el.style.animation = 'toastOut 0.3s forwards'; setTimeout(() => el.remove(), 300); }, 3500);
     }, i * 600);
   });
-  // 프로필 데이터 갱신 (다음 모달 열 때 반영)
   if (profileData) fetch(API + `/profile/${userId}`).then(r => r.json()).then(d => profileData = d);
+}
+
+// ── 타유저 프로필 (랭킹 클릭) ──
+async function openOtherProfile(uname) {
+  if (uname === username) { openProfileModal(); return; }
+  document.getElementById('other-profile-modal').style.display = 'block';
+  // 초기화
+  document.getElementById('other-profile-username').textContent = uname;
+  document.getElementById('other-profile-title-badge').textContent = '';
+  document.getElementById('other-profile-asset-now').textContent = '로딩 중...';
+  document.getElementById('other-profile-asset-peak').textContent = '—';
+  document.getElementById('other-profile-header-bg').style.cssText =
+    'padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ' + BG_HEADER_STYLES.default;
+
+  try {
+    const res = await fetch(API + `/profile/by_username/${encodeURIComponent(uname)}`);
+    const data = await res.json();
+    if (!res.ok) return;
+
+    const bgKey = data.equipped_bg || 'default';
+    const headerBg = document.getElementById('other-profile-header-bg');
+    headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
+
+    const titleId = data.equipped_title_id;
+    const equippedTitle = titleId ? data.titles.find(t => t.id === titleId) : null;
+    const badge = document.getElementById('other-profile-title-badge');
+    const unameEl = document.getElementById('other-profile-username');
+
+    if (equippedTitle) {
+      badge.textContent = `${equippedTitle.emoji} ${equippedTitle.name}`;
+      badge.style.cssText = `font-size:12px; font-weight:700; color:${equippedTitle.color}; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;`;
+    } else {
+      badge.textContent = '';
+      badge.style.cssText = '';
+    }
+    unameEl.textContent = data.username;
+    unameEl.style.fontSize = data.username.length > 10 ? '18px' : '24px';
+
+    const nowEl = document.getElementById('other-profile-asset-now');
+    const peakEl = document.getElementById('other-profile-asset-peak');
+    const nowVal = fmt(data.total_asset || 0) + '원';
+    const peakVal = fmt(data.peak_asset || 0) + '원';
+    nowEl.textContent = nowVal;
+    nowEl.style.fontSize = nowVal.length > 14 ? '12px' : '15px';
+    peakEl.textContent = peakVal;
+    peakEl.style.fontSize = peakVal.length > 14 ? '12px' : '15px';
+  } catch(e) {
+    console.error('타유저 프로필 로드 실패', e);
+  }
+}
+
+function closeOtherProfileModal(e) {
+  if (e && e.target !== document.querySelector('#other-profile-modal .modal-overlay')) return;
+  document.getElementById('other-profile-modal').style.display = 'none';
 }
 
 // ── ENTER KEY ──

@@ -106,6 +106,7 @@ class UserProfile(db.Model):
     unlocked_title_ids = db.Column(db.String(200), default='1')  # 새싹(id=1)은 기본 지급
     equipped_title_id  = db.Column(db.Integer, db.ForeignKey('title.id'), nullable=True)
     equipped_bg        = db.Column(db.String(30), default='default')
+    peak_asset         = db.Column(db.Float, default=0)          # 최대 보유 자산
     updated_at         = db.Column(db.DateTime, default=datetime.utcnow,
                                    onupdate=datetime.utcnow)
 
