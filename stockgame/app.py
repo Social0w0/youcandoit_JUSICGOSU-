@@ -976,7 +976,7 @@ def shop_equip():
 # -------------------------
 @app.route("/shop/rename", methods=["POST"])
 def shop_rename():
-    """닉네임 변경권 구매 & 즉시 적용. 총 자산의 15%를 현금에서 차감."""
+    """닉네임 변경권 구매 & 즉시 적용. 100만원 + 총 자산의 15%를 현금에서 차감."""
     data = request.json or {}
     user_id = data.get("user_id")
     new_username = (data.get("new_username") or "").strip()
@@ -1013,7 +1013,7 @@ def shop_rename():
         if stock:
             total_asset += stock.price * h.quantity
 
-    fee = total_asset * 0.15  # 총 자산의 15%
+    fee = 1000000 + total_asset * 0.15  # 총 자산의 15%
 
     if user.cash < fee:
         return jsonify({
