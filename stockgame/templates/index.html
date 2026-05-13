@@ -450,29 +450,17 @@
     margin-bottom: 10px;
   }
   .modal-box {
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  }
-  #profile-view-edit {
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-  overflow: hidden;
-  }
-  #profile-view-edit > div:first-child {
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
+  -webkit-overflow-scrolling: touch;
   }
   .title-grid {
   display: grid;grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));gap: 8px;
-  /* 핵심 */max-height: 220px;overflow-y: auto;padding-right: 4px;}
+  padding-right: 4px;}
 
   .title-card {
-  min-height: 72px;background: var(--bg3);border: 1px solid var(--border);border-radius: var(--radius-sm);
-  padding: 10px 12px;cursor: pointer;transition: all 0.2s;
+  min-height: 56px;background: var(--bg3);border: 1px solid var(--border);border-radius: var(--radius-sm);
+  padding: 8px 12px;cursor: pointer;transition: all 0.2s;
   display: flex;align-items: center;gap: 8px;
   }
   
@@ -689,14 +677,17 @@
   .modal-overlay {
     position: fixed; inset: 0; z-index: 200;
     background: rgba(0,0,0,0.7);
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: flex-start; justify-content: center;
     padding: 20px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     animation: toastIn 0.2s ease both;
   }
   .modal-box {
     background: var(--bg2); border: 1px solid var(--border2);
     border-radius: 16px; padding: 32px;
     width: 100%; max-width: 380px;
+    margin: auto;
   }
   .modal-title {
     font-family: var(--font-head); font-size: 18px; font-weight: 700;
