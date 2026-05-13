@@ -716,7 +716,7 @@ def equip_profile(user_id):
         FREE_BGS = {"default", "purple", "gold", "green", "red"}
         SHOP_BGS = {"black","violet","forest","yellow","crimson","blue","sky","pink",
                     "white","orange","lime","lavender","rose","lightblue","silver"}
-        CUSTOM_BGS = {"custom_1", "custom_2", "custom_3"}
+        CUSTOM_BGS = {"custom_bg_1", "custom_bg_2", "custom_bg_3"}
         ALL_BGS = FREE_BGS | SHOP_BGS | CUSTOM_BGS
 
         if bg not in ALL_BGS:
@@ -735,7 +735,7 @@ def equip_profile(user_id):
 
         # 커스텀 배경은 슬롯 구매 여부 + URL 존재 여부 확인
         if bg in CUSTOM_BGS:
-            slot_num = int(bg.split("_")[1])
+            slot_num = int(bg.split("_")[2])
             if (profile.custom_bg_slot_count or 0) < slot_num:
                 return jsonify({"error": f"커스텀 배경 슬롯 {slot_num}을 구매하지 않았습니다"}), 403
             url = getattr(profile, f"custom_bg_{slot_num}", None)
