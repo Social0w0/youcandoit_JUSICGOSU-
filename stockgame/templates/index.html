@@ -1160,13 +1160,12 @@ const API = ''; // 같은 origin에서 서빙 시 비워둠. 배포 후 Render U
 let userId = null, username = null;
 let currentStock = null, qty = 1;
 let priceChart = null;
-let lastEventCheck = 0;
+let lastEventSince = null;  // 마지막으로 받은 이벤트의 created_at (ISO)
 let eventInitialized = false;
 let prevPanel = 'home';
 let allStocks = [];
 let portfolio = { cash: 0, stocks: [] };
 let newsFeed = []; // 뉴스 누적 목록 (최대 20개)
-let lastEventIds = new Set();
 
 // ── TAB SWITCH ──
 let loginMode = 'new';
@@ -1263,35 +1262,33 @@ async function fetchRanking() {
 
 async function checkEvents() {
   try {
-    const res = await fetch(API + '/events/recent');
+    // since가 있으면 그 이후 이벤트만 요청, 없으면 첫 접속 (최근 3개만 반환됨)
+    const url = lastEventSince
+      ? `${API}/events/recent?since=${encodeURIComponent(lastEventSince)}`
+      : `${API}/events/recent`;
+
+    const res = await fetch(url);
     const events = await res.json();
 
+    if (events.length > 0) {
+      // since 기준점을 가장 최신 이벤트로 갱신
+      lastEventSince = events[events.length - 1].created_at;
+    }
+
     if (!eventInitialized) {
-      // 첫 로드: 기존 이벤트들을 뉴스피드에 바로 표시 (팝업은 안 띄움)
-      if (events.length > 0) {
-        // 최신순으로 뉴스피드에 추가
-        [...events].reverse().forEach(ev => {
-          newsFeed.push(ev);
-        });
-        if (newsFeed.length > 20) newsFeed = newsFeed.slice(0, 20);
-        renderNewsFeed();
-        // 마지막 이벤트의 ID를 기준점으로 저장 (시간 대신 인덱스 기반)
-        lastEventCheck = events[events.length - 1].time;
-        lastEventIds = new Set(events.map((_, i) => i));
-      }
+      // 첫 접속: 받은 이벤트(최대 3개)를 조용히 뉴스피드에만 표시, 팝업 없음
+      events.forEach(ev => newsFeed.push(ev));
+      if (newsFeed.length > 20) newsFeed = newsFeed.slice(0, 20);
+      renderNewsFeed();
       eventInitialized = true;
       return;
     }
 
-    // 이전에 없던 이벤트만 필터링 (시간 비교)
-    const newEvents = events.filter(e => e.time > lastEventCheck);
-    if (newEvents.length > 0) {
-      lastEventCheck = newEvents[newEvents.length - 1].time;
-      newEvents.forEach(ev => {
-        showEventToast(ev);
-        addNewsItem(ev);
-      });
-    }
+    // 이후 폴링: 새 이벤트만 토스트 + 뉴스피드 추가
+    events.forEach(ev => {
+      showEventToast(ev);
+      addNewsItem(ev);
+    });
   } catch(e) { console.error('checkEvents error:', e); }
 }
 

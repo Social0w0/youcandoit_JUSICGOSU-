@@ -702,12 +702,28 @@ def get_earnings(stock_id):
 # -------------------------
 @app.route("/events/recent")
 def get_recent_events():
-    rows = db.session.execute(
+    # since: 클라이언트가 마지막으로 받은 이벤트의 ISO timestamp (없으면 최근 20개 반환)
+    since_str = request.args.get("since")
+
+    query = (
         db.select(Event, Stock)
         .join(Stock, Stock.id == Event.stock_id)
         .order_by(Event.created_at.desc())
-        .limit(20)
-    ).all()
+    )
+
+    if since_str:
+        try:
+            since_dt = datetime.fromisoformat(since_str)
+            # since 이후에 생성된 이벤트만 반환 (최대 10개)
+            query = query.where(Event.created_at > since_dt).limit(10)
+        except ValueError:
+            query = query.limit(20)
+    else:
+        # 첫 접속: 최근 3개만 반환 (과거 이벤트 폭탄 방지)
+        query = query.limit(3)
+
+    rows = db.session.execute(query).all()
+    rows = list(reversed(rows))  # 시간 오름차순으로 정렬
 
     return jsonify([{
         "stock_name": stock.name,
@@ -716,7 +732,8 @@ def get_recent_events():
         "description": e.description,
         "impact": e.impact,
         "type": "positive" if e.impact > 0 else "negative",
-        "time": e.created_at.strftime("%H:%M:%S")
+        "time": e.created_at.strftime("%H:%M:%S"),
+        "created_at": e.created_at.isoformat()  # 클라이언트가 since로 사용할 값
     } for e, stock in rows])
 
 # -------------------------
