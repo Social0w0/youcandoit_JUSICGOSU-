@@ -2314,7 +2314,7 @@ function renderProfileEditView() {
   const customSwatches = (shopBgData?.custom_slots || [])
     .filter(s => s.purchased && s.image_url)
     .map(s => {
-      const key = `custom_bg${s.slot}`;
+      const key = `custom_bg_${s.slot}`;
       return `<div class="bg-swatch ${equippedBg === key ? 'equipped' : ''}"
            style="background-image:url('${s.image_url}');background-size:cover;"
            title="커스텀 ${s.slot}번"
