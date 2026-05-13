@@ -3,7 +3,8 @@ from flask_cors import CORS
 
 from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Transfer, \
                    Title, UserProfile, seed_titles, check_and_unlock_titles, \
-                   ShopTitle, ShopPurchase, seed_shop_titles
+                   ShopTitle, ShopPurchase, seed_shop_titles, \
+                   ShopBackground, ShopBgPurchase, seed_shop_backgrounds
 import random
 from datetime import datetime
 
@@ -64,6 +65,7 @@ with app.app_context():
     db.create_all()
     seed_titles()
     seed_shop_titles()
+    seed_shop_backgrounds()
 
     # DB 마이그레이션: avg_price 컬럼이 없으면 추가
     from sqlalchemy import text, inspect
@@ -88,6 +90,18 @@ with app.app_context():
                 conn.execute(text('ALTER TABLE user_profile ADD COLUMN equipped_shop_title_id INTEGER DEFAULT NULL'))
                 conn.commit()
             print("[MIGRATION] equipped_shop_title_id 컬럼 추가 완료")
+        # custom_bg 슬롯 컬럼 마이그레이션
+        for col in ['custom_bg_1', 'custom_bg_2', 'custom_bg_3']:
+            if col not in profile_cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text(f'ALTER TABLE user_profile ADD COLUMN {col} VARCHAR(500)'))
+                    conn.commit()
+                print(f"[MIGRATION] {col} 컬럼 추가 완료")
+        if 'custom_bg_slot_count' not in profile_cols:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE user_profile ADD COLUMN custom_bg_slot_count INTEGER DEFAULT 0'))
+                conn.commit()
+            print("[MIGRATION] custom_bg_slot_count 컬럼 추가 완료")
     except Exception as e:
         print(f"[MIGRATION] user_profile 테이블 없음, 건너뜀: {e}")
 
@@ -634,6 +648,10 @@ def get_profile(user_id):
         "equipped_bg": profile.equipped_bg or "default",
         "total_asset": round(total_asset, 2),
         "peak_asset": round(profile.peak_asset or 0, 2),
+        "custom_bg_slot_count": profile.custom_bg_slot_count or 0,
+        "custom_bg_1": profile.custom_bg_1,
+        "custom_bg_2": profile.custom_bg_2,
+        "custom_bg_3": profile.custom_bg_3,
         "titles": [{
             "id": t.id,
             "name": t.name,
@@ -695,9 +713,35 @@ def equip_profile(user_id):
 
     # 배경 변경
     if bg is not None:
-        allowed_bgs = {"default", "purple", "gold", "green", "red"}
-        if bg not in allowed_bgs:
+        FREE_BGS = {"default", "purple", "gold", "green", "red"}
+        SHOP_BGS = {"black","violet","forest","yellow","crimson","blue","sky","pink",
+                    "white","orange","lime","lavender","rose","lightblue","silver"}
+        CUSTOM_BGS = {"custom_1", "custom_2", "custom_3"}
+        ALL_BGS = FREE_BGS | SHOP_BGS | CUSTOM_BGS
+
+        if bg not in ALL_BGS:
             return jsonify({"error": "유효하지 않은 배경입니다"}), 400
+
+        # 상점 배경은 구매 여부 확인
+        if bg in SHOP_BGS:
+            purchased = db.session.execute(
+                db.select(ShopBgPurchase).where(
+                    ShopBgPurchase.user_id == user_id,
+                    ShopBgPurchase.bg_key == bg
+                )
+            ).scalar_one_or_none()
+            if not purchased:
+                return jsonify({"error": "구매하지 않은 배경입니다"}), 403
+
+        # 커스텀 배경은 슬롯 구매 여부 + URL 존재 여부 확인
+        if bg in CUSTOM_BGS:
+            slot_num = int(bg.split("_")[1])
+            if (profile.custom_bg_slot_count or 0) < slot_num:
+                return jsonify({"error": f"커스텀 배경 슬롯 {slot_num}을 구매하지 않았습니다"}), 403
+            url = getattr(profile, f"custom_bg_{slot_num}", None)
+            if not url:
+                return jsonify({"error": "해당 슬롯에 이미지가 등록되지 않았습니다. 먼저 이미지를 업로드해주세요."}), 400
+
         profile.equipped_bg = bg
 
     db.session.commit()
@@ -1018,6 +1062,165 @@ def shop_equip():
     return jsonify({
         "message": "상점 칭호 장착 완료" if shop_title_id else "상점 칭호 해제 완료",
         "equipped_shop_title_id": profile.equipped_shop_title_id,
+    })
+
+
+# ── 상점 배경 목록 조회 ──
+@app.route("/shop/backgrounds")
+def get_shop_backgrounds():
+    user_id = request.args.get("user_id", type=int)
+
+    purchased_keys = set()
+    custom_slot_count = 0
+    custom_urls = {}
+
+    if user_id:
+        rows = db.session.execute(
+            db.select(ShopBgPurchase.bg_key).where(ShopBgPurchase.user_id == user_id)
+        ).scalars().all()
+        purchased_keys = set(rows)
+
+        profile = UserProfile.query.filter_by(user_id=user_id).first()
+        if profile:
+            custom_slot_count = profile.custom_bg_slot_count or 0
+            for i in range(1, 4):
+                url = getattr(profile, f"custom_bg_{i}", None)
+                if url:
+                    custom_urls[f"custom_{i}"] = url
+
+    bgs = db.session.execute(
+        db.select(ShopBackground).order_by(ShopBackground.sort_order)
+    ).scalars().all()
+
+    CUSTOM_PRICES = [10_000_000_000, 100_000_000_000, 1_000_000_000_000]
+
+    return jsonify({
+        "color_bgs": [{
+            "key": b.key,
+            "label": b.label,
+            "price": b.price,
+            "purchased": b.key in purchased_keys,
+        } for b in bgs],
+        "custom_slots": [{
+            "slot": i + 1,
+            "price": CUSTOM_PRICES[i],
+            "purchased": custom_slot_count >= i + 1,
+            "image_url": custom_urls.get(f"custom_{i+1}"),
+        } for i in range(3)],
+    })
+
+
+# ── 상점 배경 색상 구매 ──
+@app.route("/shop/buy_bg", methods=["POST"])
+def buy_shop_bg():
+    data = request.json or {}
+    user_id = data.get("user_id")
+    bg_key  = data.get("bg_key")
+
+    if not user_id or not bg_key:
+        return jsonify({"error": "잘못된 요청입니다"}), 400
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저를 찾을 수 없습니다"}), 404
+
+    shop_bg = ShopBackground.query.filter_by(key=bg_key).first()
+    if not shop_bg:
+        return jsonify({"error": "존재하지 않는 배경입니다"}), 404
+
+    already = db.session.execute(
+        db.select(ShopBgPurchase).where(
+            ShopBgPurchase.user_id == user_id,
+            ShopBgPurchase.bg_key == bg_key
+        )
+    ).scalar_one_or_none()
+    if already:
+        return jsonify({"error": "이미 보유한 배경입니다"}), 400
+
+    if user.cash < shop_bg.price:
+        return jsonify({"error": f"현금이 부족합니다 (필요: {int(shop_bg.price):,}원)"}), 400
+
+    user.cash -= shop_bg.price
+    purchase = ShopBgPurchase(user_id=user_id, bg_key=bg_key)
+    db.session.add(purchase)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"'{shop_bg.label}' 배경 구매 완료!",
+        "cash": round(user.cash, 2),
+        "bg_key": bg_key,
+    })
+
+
+# ── 커스텀 배경 슬롯 구매 ──
+@app.route("/shop/buy_custom_bg_slot", methods=["POST"])
+def buy_custom_bg_slot():
+    data = request.json or {}
+    user_id = data.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "잘못된 요청입니다"}), 400
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저를 찾을 수 없습니다"}), 404
+
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        profile = UserProfile(user_id=user_id, unlocked_title_ids='1')
+        db.session.add(profile)
+        db.session.flush()
+
+    current_slots = profile.custom_bg_slot_count or 0
+
+    if current_slots >= 3:
+        return jsonify({"error": "커스텀 배경 슬롯은 최대 3개입니다"}), 400
+
+    CUSTOM_PRICES = [10_000_000_000, 100_000_000_000, 1_000_000_000_000]
+    price = CUSTOM_PRICES[current_slots]
+
+    if user.cash < price:
+        return jsonify({"error": f"현금이 부족합니다 (필요: {int(price):,}원)"}), 400
+
+    user.cash -= price
+    profile.custom_bg_slot_count = current_slots + 1
+    db.session.commit()
+
+    return jsonify({
+        "message": f"커스텀 배경 슬롯 {current_slots + 1}번 구매 완료!",
+        "cash": round(user.cash, 2),
+        "custom_bg_slot_count": profile.custom_bg_slot_count,
+    })
+
+
+# ── 커스텀 배경 이미지 URL 등록/수정 ──
+@app.route("/shop/set_custom_bg", methods=["POST"])
+def set_custom_bg():
+    data = request.json or {}
+    user_id   = data.get("user_id")
+    slot      = data.get("slot")
+    image_url = (data.get("image_url") or "").strip()
+
+    if not user_id or not slot or slot not in [1, 2, 3]:
+        return jsonify({"error": "잘못된 요청입니다"}), 400
+
+    if not image_url:
+        return jsonify({"error": "이미지 URL을 입력해주세요"}), 400
+
+    if not (image_url.startswith("http://") or image_url.startswith("https://")):
+        return jsonify({"error": "올바른 이미지 URL을 입력해주세요 (http:// 또는 https://)"}), 400
+
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if not profile or (profile.custom_bg_slot_count or 0) < slot:
+        return jsonify({"error": f"커스텀 배경 슬롯 {slot}번을 구매하지 않았습니다"}), 403
+
+    setattr(profile, f"custom_bg_{slot}", image_url)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"커스텀 배경 {slot}번 이미지가 등록되었습니다!",
+        "slot": slot,
+        "image_url": image_url,
     })
 
 

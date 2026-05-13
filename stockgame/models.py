@@ -110,6 +110,11 @@ class UserProfile(db.Model):
     peak_asset              = db.Column(db.Float, default=0)          # 최대 보유 자산
     updated_at              = db.Column(db.DateTime, default=datetime.utcnow,
                                         onupdate=datetime.utcnow)
+    # 커스텀 이미지 배경 슬롯
+    custom_bg_1             = db.Column(db.String(500), nullable=True)
+    custom_bg_2             = db.Column(db.String(500), nullable=True)
+    custom_bg_3             = db.Column(db.String(500), nullable=True)
+    custom_bg_slot_count    = db.Column(db.Integer, default=0)  # 구매한 슬롯 수 (0~3)
 
 
 # ── 칭호 초기 데이터 (app.py의 create_tables() 안에서 호출) ─────────
@@ -362,6 +367,52 @@ def seed_shop_titles():
         if data['id'] not in existing_ids:
             db.session.add(ShopTitle(**data))
 
+    db.session.commit()
+
+
+# ── 상점 배경 시스템 ──────────────────────────────────────────────
+
+class ShopBackground(db.Model):
+    __tablename__ = 'shop_background'
+    id         = db.Column(db.Integer, primary_key=True)
+    key        = db.Column(db.String(50), unique=True, nullable=False)
+    label      = db.Column(db.String(50), nullable=False)
+    price      = db.Column(db.Float, default=50000)
+    sort_order = db.Column(db.Integer, default=0)
+
+
+class ShopBgPurchase(db.Model):
+    __tablename__ = 'shop_bg_purchase'
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    bg_key     = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+SHOP_BG_LIST = [
+    {"key": "black",     "label": "검정",      "price": 50000, "sort_order": 10},
+    {"key": "violet",    "label": "보라",       "price": 50000, "sort_order": 11},
+    {"key": "forest",    "label": "초록",       "price": 50000, "sort_order": 12},
+    {"key": "yellow",    "label": "노랑",       "price": 50000, "sort_order": 13},
+    {"key": "crimson",   "label": "빨강",       "price": 50000, "sort_order": 14},
+    {"key": "blue",      "label": "파란색",     "price": 50000, "sort_order": 15},
+    {"key": "sky",       "label": "하늘색",     "price": 50000, "sort_order": 16},
+    {"key": "pink",      "label": "핑크",       "price": 50000, "sort_order": 17},
+    {"key": "white",     "label": "하양",       "price": 50000, "sort_order": 18},
+    {"key": "orange",    "label": "주황",       "price": 50000, "sort_order": 19},
+    {"key": "lime",      "label": "연두",       "price": 50000, "sort_order": 20},
+    {"key": "lavender",  "label": "연보라",     "price": 50000, "sort_order": 21},
+    {"key": "rose",      "label": "연한 빨강",  "price": 50000, "sort_order": 22},
+    {"key": "lightblue", "label": "연한 파랑",  "price": 50000, "sort_order": 23},
+    {"key": "silver",    "label": "은색",       "price": 50000, "sort_order": 24},
+]
+
+
+def seed_shop_backgrounds():
+    for b in SHOP_BG_LIST:
+        existing = ShopBackground.query.filter_by(key=b["key"]).first()
+        if not existing:
+            db.session.add(ShopBackground(**b))
     db.session.commit()
 
 

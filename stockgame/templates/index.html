@@ -782,6 +782,70 @@
     .trade-grid { grid-template-columns: 1fr 1fr; }
     .asset-value { font-size: 24px; }
   }
+
+  /* ── 상점 구매 색상 배경 15종 ── */
+  .bg-black     { background: linear-gradient(135deg, #000000 0%, #0a0a0f 60%) !important; }
+  .bg-violet    { background: linear-gradient(135deg, #2d0060 0%, #0a0a0f 60%) !important; }
+  .bg-forest    { background: linear-gradient(135deg, #003300 0%, #0a0a0f 60%) !important; }
+  .bg-yellow    { background: linear-gradient(135deg, #2a2000 0%, #0a0a0f 60%) !important; }
+  .bg-crimson   { background: linear-gradient(135deg, #3a0000 0%, #0a0a0f 60%) !important; }
+  .bg-blue      { background: linear-gradient(135deg, #00004a 0%, #0a0a0f 60%) !important; }
+  .bg-sky       { background: linear-gradient(135deg, #001a3a 0%, #0a0a0f 60%) !important; }
+  .bg-pink      { background: linear-gradient(135deg, #3a0028 0%, #0a0a0f 60%) !important; }
+  .bg-white     { background: linear-gradient(135deg, #2a2a2a 0%, #0a0a0f 60%) !important; }
+  .bg-orange    { background: linear-gradient(135deg, #3a1500 0%, #0a0a0f 60%) !important; }
+  .bg-lime      { background: linear-gradient(135deg, #1a3a00 0%, #0a0a0f 60%) !important; }
+  .bg-lavender  { background: linear-gradient(135deg, #1a1040 0%, #0a0a0f 60%) !important; }
+  .bg-rose      { background: linear-gradient(135deg, #3a0010 0%, #0a0a0f 60%) !important; }
+  .bg-lightblue { background: linear-gradient(135deg, #002040 0%, #0a0a0f 60%) !important; }
+  .bg-silver    { background: linear-gradient(135deg, #1a1a1a 0%, #2a2a30 60%) !important; }
+
+  /* ── 상점 배경 섹션 UI ── */
+  .shop-section-title {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin: 16px 0 8px;
+  }
+  .shop-bg-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+  }
+  .shop-bg-card {
+    border-radius: 10px; border: 2px solid var(--border);
+    overflow: hidden; cursor: pointer; position: relative;
+    aspect-ratio: 16/9; transition: border-color 0.15s, transform 0.1s;
+  }
+  .shop-bg-card:hover:not(.purchased) { border-color: var(--border2); transform: scale(1.03); }
+  .shop-bg-card.purchased { border-color: rgba(34,197,94,0.5); }
+  .shop-bg-card-label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    font-size: 10px; text-align: center; padding: 3px;
+    background: rgba(0,0,0,0.6); color: #fff;
+  }
+  .shop-bg-card-price {
+    position: absolute; top: 4px; right: 4px;
+    font-size: 10px; background: rgba(0,0,0,0.7);
+    color: var(--accent); border-radius: 4px; padding: 2px 5px;
+  }
+  .shop-bg-card-owned-badge {
+    position: absolute; top: 4px; left: 4px;
+    font-size: 10px; background: rgba(34,197,94,0.8);
+    color: #fff; border-radius: 4px; padding: 2px 5px;
+  }
+  .custom-slot-card {
+    background: var(--bg3); border: 2px dashed var(--border);
+    border-radius: 12px; padding: 12px; display: flex;
+    align-items: center; gap: 12px; margin-bottom: 8px;
+  }
+  .custom-slot-card.purchased { border-style: solid; border-color: var(--accent); }
+  .custom-slot-thumb {
+    width: 64px; height: 40px; border-radius: 6px;
+    border: 1px solid var(--border); object-fit: cover;
+    background: var(--bg4); flex-shrink: 0;
+  }
+  .custom-slot-info { flex: 1; min-width: 0; }
+  .custom-slot-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .custom-slot-desc  { font-size: 11px; color: var(--muted); }
+  .custom-slot-actions { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
 </style>
 </head>
 <body>
@@ -907,13 +971,31 @@
       </div>
     </div>
 
-    <!-- 배경 섹션 (비활성화) -->
-    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px; opacity:0.4; pointer-events:none; position:relative;">
-      <div style="position:absolute; top:12px; right:14px; font-size:11px; color:var(--muted); background:var(--bg3); border:1px solid var(--border); padding:3px 10px; border-radius:20px;">준비 중</div>
-      <div class="sec-head" style="margin-bottom:20px;">
-        <div class="sec-title">🖼️ 배경</div>
+    <!-- 배경 섹션 -->
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px;">
+      <div class="sec-head" style="margin-bottom:16px;">
+        <div class="sec-title">🎨 배경</div>
       </div>
-      <div style="text-align:center; padding:20px; color:var(--muted); font-size:13px;">곧 업데이트 예정입니다</div>
+
+      <!-- 색상 배경 -->
+      <div class="shop-section-title">🎨 색상 배경</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">
+        개당 <span style="color:var(--accent)">50,000원</span> &nbsp;·&nbsp; 기본 제공 5종(default/purple/gold/green/red)은 무료
+      </div>
+      <div class="shop-bg-grid" id="shop-bg-color-grid">
+        <div class="empty-state">로딩 중...</div>
+      </div>
+
+      <!-- 커스텀 이미지 배경 -->
+      <div class="shop-section-title" style="margin-top:20px;">🖼️ 커스텀 이미지 배경</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px; line-height:1.6;">
+        이미지 URL을 등록하여 나만의 배경을 설정하세요.<br>
+        슬롯은 최대 3개 구매 가능 (가격 단계적 상승).<br>
+        <span style="color:rgba(255,200,0,0.8)">⚠️ 이미지 수정은 해당 슬롯 구매 후 즉시 활성화됩니다.</span>
+      </div>
+      <div id="shop-bg-custom-slots">
+        <div class="empty-state">로딩 중...</div>
+      </div>
     </div>
 
     <!-- 닉네임 변경권 섹션 -->
@@ -1565,6 +1647,7 @@ function showShop() {
   document.getElementById('nav-shop').classList.add('active');
   prevPanel = 'shop';
   loadShopTitles();
+  loadShopBackgrounds();
 
   // 닉네임 변경 섹션 초기화
   const curEl = document.getElementById('rename-current');
@@ -1948,12 +2031,50 @@ const BG_SWATCHES = [
   { key: 'red',     label: '레드',  style: 'background:linear-gradient(135deg,#3a0000,#1a1a24)' },
 ];
 
+// ── 상점 배경 색상 스와치 스타일 맵 ──
+const SHOP_BG_STYLES = {
+  black:     'background: linear-gradient(135deg,#000,#0a0a0f)',
+  violet:    'background: linear-gradient(135deg,#2d0060,#0a0a0f)',
+  forest:    'background: linear-gradient(135deg,#003300,#0a0a0f)',
+  yellow:    'background: linear-gradient(135deg,#2a2000,#0a0a0f)',
+  crimson:   'background: linear-gradient(135deg,#3a0000,#0a0a0f)',
+  blue:      'background: linear-gradient(135deg,#00004a,#0a0a0f)',
+  sky:       'background: linear-gradient(135deg,#001a3a,#0a0a0f)',
+  pink:      'background: linear-gradient(135deg,#3a0028,#0a0a0f)',
+  white:     'background: linear-gradient(135deg,#2a2a2a,#0a0a0f)',
+  orange:    'background: linear-gradient(135deg,#3a1500,#0a0a0f)',
+  lime:      'background: linear-gradient(135deg,#1a3a00,#0a0a0f)',
+  lavender:  'background: linear-gradient(135deg,#1a1040,#0a0a0f)',
+  rose:      'background: linear-gradient(135deg,#3a0010,#0a0a0f)',
+  lightblue: 'background: linear-gradient(135deg,#002040,#0a0a0f)',
+  silver:    'background: linear-gradient(135deg,#1a1a1a,#2a2a30)',
+};
+
+const CUSTOM_SLOT_PRICES = [10_000_000_000, 100_000_000_000, 1_000_000_000_000];
+
+let shopBgData = null;
+
 const BG_HEADER_STYLES = {
-  default: 'background: linear-gradient(135deg, #22222f 0%, #1a1a24 100%);',
-  purple:  'background: linear-gradient(135deg, #3a1a5e 0%, #1a1a24 100%);',
-  gold:    'background: linear-gradient(135deg, #3a2a00 0%, #1a1a24 100%);',
-  green:   'background: linear-gradient(135deg, #003a1a 0%, #1a1a24 100%);',
-  red:     'background: linear-gradient(135deg, #3a0000 0%, #1a1a24 100%);',
+  default:   'background: linear-gradient(135deg, #22222f 0%, #1a1a24 100%);',
+  purple:    'background: linear-gradient(135deg, #3a1a5e 0%, #1a1a24 100%);',
+  gold:      'background: linear-gradient(135deg, #3a2a00 0%, #1a1a24 100%);',
+  green:     'background: linear-gradient(135deg, #003a1a 0%, #1a1a24 100%);',
+  red:       'background: linear-gradient(135deg, #3a0000 0%, #1a1a24 100%);',
+  black:     'background: linear-gradient(135deg, #000000 0%, #0a0a0f 100%);',
+  violet:    'background: linear-gradient(135deg, #2d0060 0%, #0a0a0f 100%);',
+  forest:    'background: linear-gradient(135deg, #003300 0%, #0a0a0f 100%);',
+  yellow:    'background: linear-gradient(135deg, #2a2000 0%, #0a0a0f 100%);',
+  crimson:   'background: linear-gradient(135deg, #3a0000 0%, #0a0a0f 100%);',
+  blue:      'background: linear-gradient(135deg, #00004a 0%, #0a0a0f 100%);',
+  sky:       'background: linear-gradient(135deg, #001a3a 0%, #0a0a0f 100%);',
+  pink:      'background: linear-gradient(135deg, #3a0028 0%, #0a0a0f 100%);',
+  white:     'background: linear-gradient(135deg, #2a2a2a 0%, #0a0a0f 100%);',
+  orange:    'background: linear-gradient(135deg, #3a1500 0%, #0a0a0f 100%);',
+  lime:      'background: linear-gradient(135deg, #1a3a00 0%, #0a0a0f 100%);',
+  lavender:  'background: linear-gradient(135deg, #1a1040 0%, #0a0a0f 100%);',
+  rose:      'background: linear-gradient(135deg, #3a0010 0%, #0a0a0f 100%);',
+  lightblue: 'background: linear-gradient(135deg, #002040 0%, #0a0a0f 100%);',
+  silver:    'background: linear-gradient(135deg, #1a1a1a 0%, #2a2a30 100%);',
 };
 
 async function loadProfileOnLogin() {
@@ -1993,7 +2114,17 @@ function renderProfileMainView() {
 
   // 헤더 배경
   const headerBg = document.getElementById('profile-header-bg');
-  headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
+  if (bgKey.startsWith('custom_')) {
+    const slot = parseInt(bgKey.split('_')[1]);
+    const url = profileData[`custom_bg_${slot}`];
+    if (url) {
+      headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; background-image:url('${url}'); background-size:cover; background-position:center;`;
+    } else {
+      headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES.default}`;
+    }
+  } else {
+    headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
+  }
 
   // 칭호 뱃지 + 닉네임 (상점 칭호 우선, 없으면 업적 칭호)
   let equippedTitle = null;
@@ -2104,11 +2235,36 @@ function renderProfileEditView() {
 
   // ── 배경 스와치 ──
   const bgGrid = document.getElementById('profile-bg-grid');
-  bgGrid.innerHTML = BG_SWATCHES.map(b => `
+
+  // 기본 5종
+  const freeSwatches = BG_SWATCHES.map(b => `
     <div class="bg-swatch ${equippedBg === b.key ? 'equipped' : ''}"
          style="${b.style}" title="${b.label}"
          onclick="selectBg('${b.key}')"></div>
   `).join('');
+
+  // 구매한 색상 배경 스와치
+  const purchasedColorSwatches = (shopBgData?.color_bgs || [])
+    .filter(b => b.purchased)
+    .map(b => {
+      const style = SHOP_BG_STYLES[b.key] || '';
+      return `<div class="bg-swatch ${equippedBg === b.key ? 'equipped' : ''}"
+           style="${style}" title="${b.label}"
+           onclick="selectBg('${b.key}')"></div>`;
+    }).join('');
+
+  // 구매한 커스텀 슬롯 스와치 (이미지가 있는 것만)
+  const customSwatches = (shopBgData?.custom_slots || [])
+    .filter(s => s.purchased && s.image_url)
+    .map(s => {
+      const key = `custom_${s.slot}`;
+      return `<div class="bg-swatch ${equippedBg === key ? 'equipped' : ''}"
+           style="background-image:url('${s.image_url}');background-size:cover;"
+           title="커스텀 ${s.slot}번"
+           onclick="selectBg('${key}')"></div>`;
+    }).join('');
+
+  bgGrid.innerHTML = freeSwatches + purchasedColorSwatches + customSwatches;
 }
 
 function selectTitle(titleId, type) {
@@ -2200,6 +2356,24 @@ async function saveProfile() {
 }
 
 function applyBackground(bgKey) {
+  // 커스텀 이미지 배경 처리
+  if (bgKey && bgKey.startsWith('custom_')) {
+    const slot = parseInt(bgKey.split('_')[1]);
+    const url = profileData?.[`custom_bg_${slot}`];
+    if (url) {
+      document.body.className = '';
+      document.body.style.backgroundImage = `url('${url}')`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+      return;
+    }
+  }
+  // 색상 배경 처리 (기존 방식)
+  document.body.style.backgroundImage = '';
+  document.body.style.backgroundSize = '';
+  document.body.style.backgroundPosition = '';
+  document.body.style.backgroundAttachment = '';
   document.body.className = bgKey && bgKey !== 'default' ? `bg-${bgKey}` : '';
 }
 
@@ -2292,7 +2466,170 @@ function closeOtherProfileModal(e) {
   if (e && e.target !== document.querySelector('#other-profile-modal .modal-overlay')) return;
   document.getElementById('other-profile-modal').style.display = 'none';
 }
-// ── 상점 ──
+// ── 상점 배경 ──
+async function loadShopBackgrounds() {
+  try {
+    const res = await fetch(API + `/shop/backgrounds?user_id=${userId}`);
+    shopBgData = await res.json();
+    renderShopColorBgs(shopBgData.color_bgs);
+    renderShopCustomSlots(shopBgData.custom_slots);
+  } catch(e) {
+    console.error('배경 상점 로드 실패', e);
+  }
+}
+
+function renderShopColorBgs(colorBgs) {
+  const grid = document.getElementById('shop-bg-color-grid');
+  if (!grid) return;
+
+  grid.innerHTML = colorBgs.map(b => {
+    const style = SHOP_BG_STYLES[b.key] || '';
+    return `
+      <div class="shop-bg-card ${b.purchased ? 'purchased' : ''}"
+           style="${style}"
+           onclick="${b.purchased ? `equipBg('${b.key}')` : `buyShopBg('${b.key}', ${b.price})`}">
+        ${b.purchased
+          ? `<span class="shop-bg-card-owned-badge">보유</span>`
+          : `<span class="shop-bg-card-price">${fmt(b.price)}원</span>`
+        }
+        <div class="shop-bg-card-label">${b.label}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderShopCustomSlots(slots) {
+  const container = document.getElementById('shop-bg-custom-slots');
+  if (!container) return;
+
+  container.innerHTML = slots.map(s => {
+    const slotKey = `custom_${s.slot}`;
+    const hasImage = !!s.image_url;
+    return `
+      <div class="custom-slot-card ${s.purchased ? 'purchased' : ''}">
+        ${hasImage
+          ? `<img class="custom-slot-thumb" src="${s.image_url}" alt="커스텀 배경 ${s.slot}" onerror="this.style.display='none'">`
+          : `<div class="custom-slot-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px;">🖼️</div>`
+        }
+        <div class="custom-slot-info">
+          <div class="custom-slot-title">커스텀 배경 ${s.slot}번</div>
+          <div class="custom-slot-desc">
+            ${s.purchased
+              ? (hasImage ? '이미지 등록됨' : '이미지 미등록')
+              : `구매 가격: ${fmt(s.price)}원`
+            }
+          </div>
+        </div>
+        <div class="custom-slot-actions">
+          ${s.purchased
+            ? `<button class="btn-primary" style="font-size:11px;padding:5px 10px;"
+                 onclick="openCustomBgEdit(${s.slot})">이미지 수정</button>
+               ${hasImage
+                 ? `<button class="btn-primary" style="font-size:11px;padding:5px 10px;background:rgba(124,110,255,0.2);"
+                      onclick="equipBg('${slotKey}')">장착</button>`
+                 : ''
+               }`
+            : `<button class="btn-primary" style="font-size:11px;padding:5px 10px;"
+                 onclick="buyCustomBgSlot()">슬롯 구매</button>`
+          }
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function buyShopBg(bgKey, price) {
+  if (!userId) return;
+  if (!confirm(`'${bgKey}' 배경을 ${fmt(price)}원에 구매하시겠습니까?`)) return;
+  try {
+    const res = await fetch(API + '/shop/buy_bg', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, bg_key: bgKey })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message, 'success');
+      await fetchPortfolio();
+      loadShopBackgrounds();
+    } else {
+      showToast(data.error || '구매 실패', 'error');
+    }
+  } catch(e) {
+    showToast('서버 오류', 'error');
+  }
+}
+
+async function buyCustomBgSlot() {
+  if (!userId) return;
+  const nextSlot = (shopBgData?.custom_slots?.filter(s => s.purchased).length || 0) + 1;
+  if (nextSlot > 3) return;
+  const price = CUSTOM_SLOT_PRICES[nextSlot - 1];
+  if (!confirm(`커스텀 배경 슬롯 ${nextSlot}번을 ${fmt(price)}원에 구매하시겠습니까?`)) return;
+  try {
+    const res = await fetch(API + '/shop/buy_custom_bg_slot', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message, 'success');
+      await fetchPortfolio();
+      loadShopBackgrounds();
+      if (profileData) profileData.custom_bg_slot_count = data.custom_bg_slot_count;
+    } else {
+      showToast(data.error || '구매 실패', 'error');
+    }
+  } catch(e) {
+    showToast('서버 오류', 'error');
+  }
+}
+
+async function equipBg(bgKey) {
+  if (!userId) return;
+  try {
+    const res = await fetch(API + `/profile/${userId}/equip`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bg: bgKey })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('배경이 변경되었습니다!', 'success');
+      if (profileData) profileData.equipped_bg = bgKey;
+      applyBackground(bgKey);
+    } else {
+      showToast(data.error || '장착 실패', 'error');
+    }
+  } catch(e) {
+    showToast('서버 오류', 'error');
+  }
+}
+
+function openCustomBgEdit(slot) {
+  const currentUrl = shopBgData?.custom_slots?.[slot - 1]?.image_url || '';
+  const url = prompt(`커스텀 배경 ${slot}번 이미지 URL을 입력하세요\n(Imgur, Discord CDN 등 외부 이미지 URL):`, currentUrl);
+  if (url === null) return;
+  saveCustomBgUrl(slot, url.trim());
+}
+
+async function saveCustomBgUrl(slot, imageUrl) {
+  if (!imageUrl) return;
+  try {
+    const res = await fetch(API + '/shop/set_custom_bg', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, slot, image_url: imageUrl })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message, 'success');
+      if (profileData) profileData[`custom_bg_${slot}`] = imageUrl;
+      loadShopBackgrounds();
+    } else {
+      showToast(data.error || '저장 실패', 'error');
+    }
+  } catch(e) {
+    showToast('서버 오류', 'error');
+  }
+}
+
+// ── 상점 칭호 ──
 async function loadShopTitles() {
   try {
     const res = await fetch(API + `/shop/titles?user_id=${userId}`);
