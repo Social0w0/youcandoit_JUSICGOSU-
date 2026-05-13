@@ -855,6 +855,29 @@ def admin_trigger_event():
     return jsonify({"message": f"{s.name}에 이벤트 발생!", "stock": s.name, "title": title, "impact": impact})
 
 # -------------------------
+# 관리자 - 유저 생성
+# -------------------------
+@app.route("/admin/create_test_user", methods=["POST"])
+def create_test_user():
+    data = request.json
+    username = data.get("username", "testplayer")
+    password = data.get("password", "1234")
+    cash = data.get("cash", 9999999)
+
+    existing = User.query.filter_by(username=username).first()
+    if existing:
+        existing.cash = cash
+        db.session.commit()
+        return jsonify({"message": f"{username} cash 수정 완료", "cash": cash})
+
+    user = User(username=username, password=password, cash=cash)
+    db.session.add(user)
+    db.session.flush()
+    db.session.add(UserProfile(user_id=user.id))
+    db.session.commit()
+    return jsonify({"message": f"{username} 생성 완료", "id": user.id, "cash": cash})
+
+# -------------------------
 # 송금 시스템
 # -------------------------
 @app.route("/transfer", methods=["POST"])
