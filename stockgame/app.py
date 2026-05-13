@@ -402,6 +402,7 @@ def buy():
     profile = UserProfile.query.filter_by(user_id=user_id).first()
     if profile and total_asset > (profile.peak_asset or 0):
         profile.peak_asset = total_asset
+        db.session.commit()
 
 
     newly = check_and_unlock_titles(user_id, total_asset)
@@ -473,6 +474,7 @@ def sell():
     profile = UserProfile.query.filter_by(user_id=user_id).first()
     if profile and total_asset > (profile.peak_asset or 0):
         profile.peak_asset = total_asset
+        db.session.commit()
 
     newly = check_and_unlock_titles(user_id, total_asset)
 
@@ -844,6 +846,7 @@ def transfer():
     profile = UserProfile.query.filter_by(user_id=from_id).first()  # user_id → from_id
     if profile and total_assets > (profile.peak_asset or 0):
         profile.peak_asset = total_assets
+        db.session.commit()
 
     # 10% 제한
     max_amount = total_assets * 0.1
@@ -1154,6 +1157,27 @@ def update_stock_prices():
 
     db.session.bulk_save_objects(new_histories)
 
+    # ✅ 여기에 추가 - 모든 유저 peak_asset 갱신
+    all_users = db.session.execute(db.select(User)).scalars().all()
+    stocks_price_map = {s.id: s.price for s in stocks}  # 이미 위에서 가격 갱신된 stocks 재활용
+    all_holdings = db.session.execute(db.select(Holding)).scalars().all()
+
+    # 유저별 보유주식 총액 집계
+    holdings_by_user = {}
+    for h in all_holdings:
+        holdings_by_user.setdefault(h.user_id, []).append(h)
+
+    for u in all_users:
+        stock_value = sum(
+            stocks_price_map.get(h.stock_id, 0) * h.quantity
+            for h in holdings_by_user.get(u.id, [])
+        )
+        total_asset = u.cash + stock_value
+
+        profile = UserProfile.query.filter_by(user_id=u.id).first()
+        if profile and total_asset > (profile.peak_asset or 0):
+            profile.peak_asset = total_asset
+            
     # 60틱마다 오래된 PriceHistory 정리 (종목당 최근 360개만 유지)
     if _tick_counter % 60 == 0:
         from sqlalchemy import text
