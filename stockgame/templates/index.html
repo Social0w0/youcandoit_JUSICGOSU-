@@ -2578,7 +2578,7 @@ function renderShopCustomSlots(slots) {
   if (!container) return;
 
   container.innerHTML = slots.map(s => {
-    const slotKey = `custom_${s.slot}`;
+    const slotKey = `custom_bg_${s.slot}`;
     const hasImage = !!s.image_url;
     return `
       <div class="custom-slot-card ${s.purchased ? 'purchased' : ''}">
