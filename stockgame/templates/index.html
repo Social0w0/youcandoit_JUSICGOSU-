@@ -452,10 +452,23 @@
   .modal-box {
   max-height: 90vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  }
+  #profile-view-edit {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+  }
+  #profile-view-edit > div:first-child {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
   }
   .title-grid {
   display: grid;grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));gap: 8px;
-  /* 핵심 */max-height: 320px;overflow-y: auto;padding-right: 4px;}
+  /* 핵심 */max-height: 220px;overflow-y: auto;padding-right: 4px;}
 
   .title-card {
   min-height: 72px;background: var(--bg3);border: 1px solid var(--border);border-radius: var(--radius-sm);
@@ -471,11 +484,19 @@
   .title-card-name { font-size: 13px; font-weight: 700;overflow: hidden;text-overflow: ellipsis;white-space: nowrap; }
 
   .title-card-desc { font-size: 11px; color: var(--muted); margin-top: 1px;overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bg-grid { display: flex; gap: 8px; flex-wrap: wrap; max-height: 200px; overflow-y: auto; padding-right: 4px; }
+  .bg-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    padding-right: 4px;
+  }
+  @media (max-width: 380px) {
+    .bg-grid { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  }
   .bg-swatch {
-    width: 40px; height: 40px; border-radius: 8px;
+    width: 100%; aspect-ratio: 1; border-radius: 8px;
     border: 2px solid var(--border); cursor: pointer;
-    transition: all 0.2s; flex-shrink: 0;
+    transition: all 0.2s;
   }
   .bg-swatch:hover { transform: scale(1.1); }
   .bg-swatch.equipped { border-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
