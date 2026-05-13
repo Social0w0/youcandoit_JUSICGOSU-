@@ -42,6 +42,20 @@
     overflow-x: hidden;
   }
 
+  /* ── FIXED BACKGROUND LAYER ── */
+  /* 커스텀 이미지 배경을 위한 고정 레이어: 창/페이지 길이와 무관하게 뷰포트 기준으로 항상 동일 크기 */
+  #bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--bg);
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    transition: background-image 0.4s ease;
+    pointer-events: none;
+  }
+
   /* ── GRID NOISE BACKGROUND ── */
   body::before {
     content: '';
@@ -849,6 +863,9 @@
 </style>
 </head>
 <body>
+
+<!-- ── 커스텀 배경 고정 레이어: 창/페이지 길이와 무관하게 뷰포트 기준으로 항상 동일 크기 유지 ── -->
+<div id="bg-layer"></div>
 
 <!-- ── LOGIN ── -->
 <div id="view-login" class="view active">
@@ -2356,24 +2373,24 @@ async function saveProfile() {
 }
 
 function applyBackground(bgKey) {
+  const bgLayer = document.getElementById('bg-layer');
+
   // 커스텀 이미지 배경 처리
+  // #bg-layer(position:fixed, inset:0)를 사용하므로
+  // 창/페이지 길이·모바일 여부와 무관하게 항상 뷰포트 기준으로 동일 크기 유지
   if (bgKey && bgKey.startsWith('custom_')) {
     const slot = parseInt(bgKey.split('_')[1]);
     const url = profileData?.[`custom_bg_${slot}`];
     if (url) {
       document.body.className = '';
-      document.body.style.backgroundImage = `url('${url}')`;
-      document.body.style.backgroundSize = 'cover';
-      document.body.style.backgroundPosition = 'center';
-      document.body.style.backgroundAttachment = 'fixed';
+      // body에 직접 background 적용 시 페이지 높이·모바일 환경에 따라
+      // 이미지 크기가 변동되는 문제를 고정 레이어로 해결
+      bgLayer.style.backgroundImage = `url('${url}')`;
       return;
     }
   }
-  // 색상 배경 처리 (기존 방식)
-  document.body.style.backgroundImage = '';
-  document.body.style.backgroundSize = '';
-  document.body.style.backgroundPosition = '';
-  document.body.style.backgroundAttachment = '';
+  // 색상 배경 처리 (기존 방식) — 고정 레이어 이미지 초기화
+  bgLayer.style.backgroundImage = '';
   document.body.className = bgKey && bgKey !== 'default' ? `bg-${bgKey}` : '';
 }
 
