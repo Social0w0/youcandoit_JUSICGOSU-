@@ -339,6 +339,36 @@ def buy():
 
     cost = stock.price * qty
 
+    # ── 총 자산 계산 (매수 전 기준) ──
+    holdings_before = db.session.execute(
+        db.select(Holding).where(Holding.user_id == user_id)
+    ).scalars().all()
+    total_asset_before = user.cash + sum(
+        db.session.get(Stock, h.stock_id).price * h.quantity
+        for h in holdings_before
+    )
+
+    # ── 계단식 매수 한도 제한 ──
+    GYEONG = 1_000_000_000_000_0000  # 1경 = 10^16
+    JO    = 1_000_000_000_000        # 1조 = 10^12
+
+    if total_asset_before >= GYEONG:
+        # 1경 이상: 총재산의 30%가 최대 매수 금액
+        max_cost = total_asset_before * 0.30
+        if cost > max_cost:
+            return jsonify({
+                "error": f"💰 자산 규모 제한: 1경 이상 보유자는 1회 매수 금액이 총재산의 30% 이하여야 합니다 "
+                         f"(최대 {max_cost:,.0f}원, 요청 {cost:,.0f}원)"
+            }), 400
+    elif total_asset_before >= JO:
+        # 1조 이상 ~ 1경 미만: 총재산의 50%가 최대 매수 금액
+        max_cost = total_asset_before * 0.50
+        if cost > max_cost:
+            return jsonify({
+                "error": f"💰 자산 규모 제한: 1조 이상 보유자는 1회 매수 금액이 총재산의 50% 이하여야 합니다 "
+                         f"(최대 {max_cost:,.0f}원, 요청 {cost:,.0f}원)"
+            }), 400
+
     if user.cash < cost:
         return jsonify({"error": f"잔액 부족 (필요: {cost:.0f}원, 보유: {user.cash:.0f}원)"}), 400
 

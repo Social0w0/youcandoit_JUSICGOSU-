@@ -1035,6 +1035,8 @@
           <button class="qty-preset" onclick="setQtyAll()">최대</button>
         </div>
 
+        <div id="buy-limit-notice" style="display:none; font-size:12px; color:var(--amber); background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:6px; padding:8px 12px; margin-bottom:10px; line-height:1.5;"></div>
+
         <div class="trade-cost">
           주문 금액: <strong id="trade-total-cost">—</strong>원
         </div>
@@ -1615,6 +1617,24 @@ function updateDetailPrices() {
   const holding = (portfolio.stocks || []).find(h => h.stock_id === currentStock.id);
   document.getElementById('trade-holding').textContent = (holding ? holding.quantity : 0) + '주';
 
+  // 매수 한도 안내 업데이트
+  const total = portfolio.total || 0;
+  const GYEONG = 1e16, JO = 1e12;
+  const limitEl = document.getElementById('buy-limit-notice');
+  if (limitEl) {
+    if (total >= GYEONG) {
+      const maxCost = Math.floor(total * 0.30);
+      limitEl.textContent = `⚠️ 1경 이상 보유자: 1회 매수 한도 총자산의 30% (최대 ${fmt(maxCost)}원)`;
+      limitEl.style.display = 'block';
+    } else if (total >= JO) {
+      const maxCost = Math.floor(total * 0.50);
+      limitEl.textContent = `⚠️ 1조 이상 보유자: 1회 매수 한도 총자산의 50% (최대 ${fmt(maxCost)}원)`;
+      limitEl.style.display = 'block';
+    } else {
+      limitEl.style.display = 'none';
+    }
+  }
+
   updateQtyDisplay();
 }
 
@@ -1749,16 +1769,32 @@ function changeQty(delta) {
   updateQtyDisplay();
 }
 
+function getBuyBudget() {
+  // 계단식 매수 한도: 총자산 기준으로 1회 최대 사용 가능한 금액 반환
+  const total = portfolio.total || 0;
+  const GYEONG = 1e16;
+  const JO     = 1e12;
+  let maxBudget = portfolio.cash; // 기본: 보유 현금 전액
+  if (total >= GYEONG) {
+    maxBudget = Math.min(portfolio.cash, total * 0.30);
+  } else if (total >= JO) {
+    maxBudget = Math.min(portfolio.cash, total * 0.50);
+  }
+  return maxBudget;
+}
+
 function setQtyPct(pct) {
   if (!currentStock) return;
-  const maxBuy = Math.floor(portfolio.cash / currentStock.price);
+  const budget = getBuyBudget();
+  const maxBuy = Math.floor(budget / currentStock.price);
   qty = Math.max(1, Math.floor(maxBuy * pct));
   updateQtyDisplay();
 }
 
 function setQtyAll() {
   if (!currentStock) return;
-  qty = Math.max(1, Math.floor(portfolio.cash / currentStock.price));
+  const budget = getBuyBudget();
+  qty = Math.max(1, Math.floor(budget / currentStock.price));
   updateQtyDisplay();
 }
 
