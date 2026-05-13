@@ -1109,7 +1109,7 @@ def get_shop_backgrounds():
             for i in range(1, 4):
                 url = getattr(profile, f"custom_bg_{i}", None)
                 if url:
-                    custom_urls[f"custom_{i}"] = url
+                    custom_urls[f"custom_bg_{i}"] = url
 
     bgs = db.session.execute(
         db.select(ShopBackground).order_by(ShopBackground.sort_order)
@@ -1128,7 +1128,7 @@ def get_shop_backgrounds():
             "slot": i + 1,
             "price": CUSTOM_PRICES[i],
             "purchased": custom_slot_count >= i + 1,
-            "image_url": custom_urls.get(f"custom_{i+1}"),
+            "image_url": custom_urls.get(f"custom_bg_{i+1}"),
         } for i in range(3)],
     })
 

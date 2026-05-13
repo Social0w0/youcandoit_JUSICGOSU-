@@ -2171,7 +2171,7 @@ function renderProfileMainView() {
 
   // 헤더 배경
   const headerBg = document.getElementById('profile-header-bg');
-  if (bgKey.startsWith('custom_')) {
+  if (bgKey.startsWith('custom_bg')) {
     const slot = parseInt(bgKey.split('_')[1]);
     const url = profileData[`custom_bg_${slot}`];
     if (url) {
@@ -2314,7 +2314,7 @@ function renderProfileEditView() {
   const customSwatches = (shopBgData?.custom_slots || [])
     .filter(s => s.purchased && s.image_url)
     .map(s => {
-      const key = `custom_${s.slot}`;
+      const key = `custom_bg${s.slot}`;
       return `<div class="bg-swatch ${equippedBg === key ? 'equipped' : ''}"
            style="background-image:url('${s.image_url}');background-size:cover;"
            title="커스텀 ${s.slot}번"
@@ -2418,7 +2418,7 @@ function applyBackground(bgKey) {
   // 커스텀 이미지 배경 처리
   // #bg-layer(position:fixed, inset:0)를 사용하므로
   // 창/페이지 길이·모바일 여부와 무관하게 항상 뷰포트 기준으로 동일 크기 유지
-  if (bgKey && bgKey.startsWith('custom_')) {
+  if (bgKey && bgKey.startsWith('custom_bg')) {
     const slot = parseInt(bgKey.split('_')[1]);
     const url = profileData?.[`custom_bg_${slot}`];
     if (url) {
