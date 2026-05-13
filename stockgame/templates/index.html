@@ -416,13 +416,30 @@
   body.custom-bg-active .login-box,
   body.custom-bg-active .title-card,
   body.custom-bg-active .modal-box,
-  body.custom-bg-active .event-toast {
+  body.custom-bg-active .event-toast,
+  /* 더보기 버튼 */
+  body.custom-bg-active .show-more-btn,
+  /* 뉴스 카드 */
+  body.custom-bg-active .news-item,
+  /* 분기 실적 카드 */
+  body.custom-bg-active .earnings-wrap,
+  body.custom-bg-active .earnings-item,
+  /* 상점 섹션 패널들 (칭호/배경/닉네임변경권) */
+  body.custom-bg-active #panel-shop > div,
+  body.custom-bg-active .shop-title-card,
+  body.custom-bg-active .shop-bg-card,
+  body.custom-bg-active .custom-slot-card,
+  body.custom-bg-active #rename-cost-box {
     background: rgba(10, 10, 20, 0.45) !important;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
   }
   body.custom-bg-active .topbar {
     background: rgba(10, 10, 15, 0.55) !important;
+  }
+  /* 상점 칭호 구매됨 상태 색상 유지 */
+  body.custom-bg-active .shop-title-card.purchased {
+    background: rgba(34, 197, 94, 0.08) !important;
   }
 
   /* ── 프로필 모달 ── */
