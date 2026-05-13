@@ -402,6 +402,29 @@
   .bg-green  { background: linear-gradient(135deg, #001a0a 0%, #0a0a0f 60%) !important; }
   .bg-red    { background: linear-gradient(135deg, #1a0000 0%, #0a0a0f 60%) !important; }
 
+  /* ── 커스텀 이미지 배경 활성 시: 카드·패널 반투명 처리 ── */
+  body.custom-bg-active .asset-card,
+  body.custom-bg-active .asset-mini,
+  body.custom-bg-active .stock-card,
+  body.custom-bg-active .holding-item,
+  body.custom-bg-active .rank-item,
+  body.custom-bg-active .chart-wrap,
+  body.custom-bg-active .trade-panel,
+  body.custom-bg-active .trade-info,
+  body.custom-bg-active .qty-wrap,
+  body.custom-bg-active .topbar,
+  body.custom-bg-active .login-box,
+  body.custom-bg-active .title-card,
+  body.custom-bg-active .modal-box,
+  body.custom-bg-active .event-toast {
+    background: rgba(10, 10, 20, 0.45) !important;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  body.custom-bg-active .topbar {
+    background: rgba(10, 10, 15, 0.55) !important;
+  }
+
   /* ── 프로필 모달 ── */
   .profile-section { margin-bottom: 20px; }
   .profile-section-title {
@@ -2382,14 +2405,14 @@ function applyBackground(bgKey) {
     const slot = parseInt(bgKey.split('_')[1]);
     const url = profileData?.[`custom_bg_${slot}`];
     if (url) {
-      document.body.className = '';
+      document.body.className = 'custom-bg-active';
       // body에 직접 background 적용 시 페이지 높이·모바일 환경에 따라
       // 이미지 크기가 변동되는 문제를 고정 레이어로 해결
       bgLayer.style.backgroundImage = `url('${url}')`;
       return;
     }
   }
-  // 색상 배경 처리 (기존 방식) — 고정 레이어 이미지 초기화
+  // 색상 배경 처리 (기존 방식) — 고정 레이어 이미지 초기화 + 반투명 클래스 제거
   bgLayer.style.backgroundImage = '';
   document.body.className = bgKey && bgKey !== 'default' ? `bg-${bgKey}` : '';
 }
