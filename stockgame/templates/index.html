@@ -2489,10 +2489,29 @@ async function openOtherProfile(uname) {
 
     const bgKey = data.equipped_bg || 'default';
     const headerBg = document.getElementById('other-profile-header-bg');
-    headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
 
-    const titleId = data.equipped_title_id;
-    const equippedTitle = titleId ? data.titles.find(t => t.id === titleId) : null;
+    // 커스텀 이미지 배경 처리 (custom_bg_1, custom_bg_2, custom_bg_3)
+    const customBgMatch = bgKey.match(/^custom_bg_(\d+)$/);
+    if (customBgMatch) {
+      const slot = customBgMatch[1];
+      const imageUrl = data[`custom_bg_${slot}`];
+      if (imageUrl) {
+        headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; background-image:url('${imageUrl}'); background-size:cover; background-position:center;`;
+      } else {
+        headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES.default}`;
+      }
+    } else {
+      headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
+    }
+
+    // 상점 칭호 우선, 없으면 업적 칭호 확인
+    let equippedTitle = null;
+    if (data.equipped_shop_title_id) {
+      equippedTitle = (data.shop_titles || []).find(t => t.id === data.equipped_shop_title_id) || null;
+    }
+    if (!equippedTitle && data.equipped_title_id) {
+      equippedTitle = (data.titles || []).find(t => t.id === data.equipped_title_id) || null;
+    }
     const badge = document.getElementById('other-profile-title-badge');
     const unameEl = document.getElementById('other-profile-username');
 
