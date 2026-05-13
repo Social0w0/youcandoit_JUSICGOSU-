@@ -1136,8 +1136,9 @@ def update_stock_prices():
         
         change = random.uniform(-0.018, 0.018)
 
-        for e in events_by_stock.get(s.id, []):
-            change += e.impact * 0.5
+        for i, e in enumerate(events_by_stock.get(s.id, [])):
+            decay = 0.5 ** i
+            change += e.impact * 0.5 * decay
             e.duration -= 1
             if e.duration <= 0:
                 e.duration = 0
