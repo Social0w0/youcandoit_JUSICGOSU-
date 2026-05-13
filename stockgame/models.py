@@ -332,6 +332,15 @@ SHOP_TITLE_SEEDS = [
         'sort_order': 7,
     },
     {
+        'id': 18,
+        'name': '글로볼',
+        'emoji': '🌏',
+        'description': '주식을 세계로 !!',
+        'price': 1000_0000_0000_0000,
+        'color': "#2623fa",
+        'sort_order': 7,
+    },
+    {
         'id': 10,
         'name': '주식의 신',
         'emoji': '🎖️',
