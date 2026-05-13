@@ -2172,7 +2172,7 @@ function renderProfileMainView() {
   // 헤더 배경
   const headerBg = document.getElementById('profile-header-bg');
   if (bgKey.startsWith('custom_bg')) {
-    const slot = parseInt(bgKey.split('_')[1]);
+    const slot = parseInt(bgKey.split('_')[2]);
     const url = profileData[`custom_bg_${slot}`];
     if (url) {
       headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; background-image:url('${url}'); background-size:cover; background-position:center;`;
@@ -2419,7 +2419,7 @@ function applyBackground(bgKey) {
   // #bg-layer(position:fixed, inset:0)를 사용하므로
   // 창/페이지 길이·모바일 여부와 무관하게 항상 뷰포트 기준으로 동일 크기 유지
   if (bgKey && bgKey.startsWith('custom_bg')) {
-    const slot = parseInt(bgKey.split('_')[1]);
+    const slot = parseInt(bgKey.split('_')[2]);
     const url = profileData?.[`custom_bg_${slot}`];
     if (url) {
       document.body.className = 'custom-bg-active';
