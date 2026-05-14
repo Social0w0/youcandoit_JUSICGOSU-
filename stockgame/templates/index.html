@@ -450,17 +450,29 @@
     margin-bottom: 10px;
   }
   .modal-box {
-  max-height: 85vh;
+  max-height: 90vh;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  }
+  #profile-view-edit {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+  }
+  #profile-view-edit > div:first-child {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
   }
   .title-grid {
   display: grid;grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));gap: 8px;
-  padding-right: 4px;}
+  /* 핵심 */max-height: 220px;overflow-y: auto;padding-right: 4px;}
 
   .title-card {
-  min-height: 56px;background: var(--bg3);border: 1px solid var(--border);border-radius: var(--radius-sm);
-  padding: 8px 12px;cursor: pointer;transition: all 0.2s;
+  min-height: 72px;background: var(--bg3);border: 1px solid var(--border);border-radius: var(--radius-sm);
+  padding: 10px 12px;cursor: pointer;transition: all 0.2s;
   display: flex;align-items: center;gap: 8px;
   }
   
@@ -677,17 +689,14 @@
   .modal-overlay {
     position: fixed; inset: 0; z-index: 200;
     background: rgba(0,0,0,0.7);
-    display: flex; align-items: flex-start; justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     padding: 20px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     animation: toastIn 0.2s ease both;
   }
   .modal-box {
     background: var(--bg2); border: 1px solid var(--border2);
     border-radius: 16px; padding: 32px;
     width: 100%; max-width: 380px;
-    margin: auto;
   }
   .modal-title {
     font-family: var(--font-head); font-size: 18px; font-weight: 700;
@@ -1975,8 +1984,20 @@ function onQtyBlur(el) {
 }
 
 // ── TRADE ──
+// 매수 쿨다운 상태 (100억 이상)
+let buyCooldownTimer = null;
+let buyCooldownEnd = 0;
+
 async function executeTrade(action) {
   if (!userId || !currentStock) return;
+
+  const buyBtn = document.querySelector('.btn-buy');
+  const sellBtn = document.querySelector('.btn-sell');
+
+  // 버튼 비활성화 (연속 클릭 방지)
+  if (buyBtn) buyBtn.disabled = true;
+  if (sellBtn) sellBtn.disabled = true;
+
   try {
     const res = await fetch(API + `/${action}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1990,10 +2011,48 @@ async function executeTrade(action) {
       updateDetailPrices();
     } else {
       showToast(data.error || '오류 발생', 'error');
+      // 서버로부터 쿨다운 남은 시간이 오면 UI에 카운트다운 표시
+      if (data.cooldown_remaining && action === 'buy') {
+        startBuyCooldown(data.cooldown_remaining);
+        return; // 쿨다운 중이므로 버튼 복원은 카운트다운 종료 후에
+      }
     }
   } catch(e) {
     showToast('서버 오류', 'error');
   }
+
+  // 버튼 복원
+  if (buyBtn) buyBtn.disabled = false;
+  if (sellBtn) sellBtn.disabled = false;
+}
+
+function startBuyCooldown(seconds) {
+  const buyBtn = document.querySelector('.btn-buy');
+  const sellBtn = document.querySelector('.btn-sell');
+  if (!buyBtn) return;
+
+  // 기존 타이머 있으면 클리어
+  if (buyCooldownTimer) clearInterval(buyCooldownTimer);
+
+  buyCooldownEnd = Date.now() + seconds * 1000;
+
+  function tick() {
+    const remaining = (buyCooldownEnd - Date.now()) / 1000;
+    if (remaining <= 0) {
+      clearInterval(buyCooldownTimer);
+      buyCooldownTimer = null;
+      buyBtn.disabled = false;
+      buyBtn.textContent = '▲ 매수';
+      if (sellBtn) sellBtn.disabled = false;
+      return;
+    }
+    buyBtn.disabled = true;
+    buyBtn.textContent = `⏱️ ${remaining.toFixed(1)}초`;
+    if (sellBtn) sellBtn.disabled = false; // 매도는 쿨다운 없음
+  }
+
+  tick();
+  buyCooldownTimer = setInterval(tick, 100);
 }
 
 // ── TOAST ──

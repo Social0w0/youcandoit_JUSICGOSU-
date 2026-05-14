@@ -33,6 +33,37 @@ scheduler = BackgroundScheduler()
 # 서킷 브레이커 상태: {stock_id: unlock_time}
 circuit_breakers = {}
 
+# 매수 쿨다운 상태: {user_id: (last_buy_time, cooldown_seconds)}
+# 100억 이상 매수 시 점진적 쿨다운 적용 (100억→5초 ~ 1조→600초/10분, 로그 스케일)
+buy_cooldowns = {}
+BUY_COOLDOWN_MIN_AMOUNT  = 10_000_000_000   # 쿨다운 시작 기준: 100억
+BUY_COOLDOWN_MAX_AMOUNT  = 1_000_000_000_000 # 쿨다운 최대 기준: 1조
+BUY_COOLDOWN_MIN_SECONDS = 5                 # 최소 쿨다운: 5초  (100억 기준)
+BUY_COOLDOWN_MAX_SECONDS = 600               # 최대 쿨다운: 600초 = 10분 (1조 이상)
+
+def calc_buy_cooldown(cost: float) -> float:
+    """
+    매수 금액에 따라 쿨다운(초)을 로그 스케일로 계산한다.
+    - cost < 100억  → 0초 (쿨다운 없음)
+    - cost = 100억  → 5초
+    - cost = 1조    → 600초 (10분)
+    - cost > 1조    → 600초 (최대 고정)
+    """
+    if cost < BUY_COOLDOWN_MIN_AMOUNT:
+        return 0.0
+    if cost >= BUY_COOLDOWN_MAX_AMOUNT:
+        return float(BUY_COOLDOWN_MAX_SECONDS)
+
+    import math
+    log_min = math.log10(BUY_COOLDOWN_MIN_AMOUNT)
+    log_max = math.log10(BUY_COOLDOWN_MAX_AMOUNT)
+    log_cost = math.log10(cost)
+
+    # 0.0 ~ 1.0 사이의 비율
+    ratio = (log_cost - log_min) / (log_max - log_min)
+    cooldown = BUY_COOLDOWN_MIN_SECONDS + ratio * (BUY_COOLDOWN_MAX_SECONDS - BUY_COOLDOWN_MIN_SECONDS)
+    return round(cooldown, 1)
+
 # -------------------------
 # 이벤트 데이터
 # -------------------------
@@ -353,7 +384,24 @@ def buy():
 
     cost = stock.price * qty
 
-    # ── 총 자산 계산 (매수 전 기준) ──
+    # ── 점진적 매수 쿨다운 체크 (100억~1조, 최대 10분) ──
+    required_cooldown = calc_buy_cooldown(cost)
+    if required_cooldown > 0:
+        last_buy_info = buy_cooldowns.get(user_id)
+        if last_buy_info is not None:
+            last_buy_time, last_cooldown = last_buy_info
+            elapsed = (datetime.utcnow() - last_buy_time).total_seconds()
+            remaining_cooldown = last_cooldown - elapsed
+            if remaining_cooldown > 0:
+                if last_cooldown >= 60:
+                    wait_str = f"{int(remaining_cooldown // 60)}분 {int(remaining_cooldown % 60)}초"
+                else:
+                    wait_str = f"{remaining_cooldown:.1f}초"
+                return jsonify({
+                    "error": f"⏱️ 대규모 매수 쿨다운 중. {wait_str} 후 다시 시도해주세요. "
+                             f"(직전 매수 기준 {last_cooldown:.0f}초 쿨다운)",
+                    "cooldown_remaining": round(remaining_cooldown, 1)
+                }), 429  # Too Many Requests
     holdings_before = db.session.execute(
         db.select(Holding).where(Holding.user_id == user_id)
     ).scalars().all()
@@ -387,6 +435,10 @@ def buy():
         return jsonify({"error": f"잔액 부족 (필요: {cost:.0f}원, 보유: {user.cash:.0f}원)"}), 400
 
     user.cash -= cost
+
+    # ── 점진적 쿨다운 타임스탬프 기록 (금액 기반 쿨다운 시간과 함께 저장) ──
+    if required_cooldown > 0:
+        buy_cooldowns[user_id] = (datetime.utcnow(), required_cooldown)
 
     holding = db.session.execute(
         db.select(Holding).where(Holding.user_id == user_id, Holding.stock_id == stock_id)
