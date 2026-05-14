@@ -711,6 +711,14 @@ def get_profile(user_id):
     purchased_shop_ids = set(purchased_rows)
     all_shop_titles = ShopTitle.query.order_by(ShopTitle.sort_order).all()
 
+    # 뽑기 칭호 보유 목록
+    owned_gacha_ids = set(
+        r.gacha_title_id for r in db.session.execute(
+            db.select(GachaTitleOwned).where(GachaTitleOwned.user_id == user_id)
+        ).scalars().all()
+    )
+    all_gacha_titles = GachaTitle.query.order_by(GachaTitle.sort_order).all()
+
     return jsonify({
         "username": user.username,
         "equipped_title_id": profile.equipped_title_id,
@@ -741,6 +749,15 @@ def get_profile(user_id):
             "color": t.color,
             "purchased": t.id in purchased_shop_ids,
         } for t in all_shop_titles],
+        "gacha_titles": [{
+            "id": t.id,
+            "name": t.name,
+            "emoji": t.emoji,
+            "description": t.description,
+            "color": t.color,
+            "rarity": t.rarity,
+            "owned": t.id in owned_gacha_ids,
+        } for t in all_gacha_titles],
     })
 
 # -------------------------
@@ -1433,14 +1450,14 @@ def _do_gacha_pulls(count: int):
     # 꽝 더미 객체 (칭호 없이 포인트만 지급)
     class DummyMiss:
         id = -1
-        name = '꽝'
+        name = '1 포인트'
         emoji = '💨'
         color = '#555566'
         rarity = 'miss'
         weight = 0        # 여기서 안 씀
         point_value = 1   # 꽝 지급 포인트
 
-    MISS_WEIGHT = 1000  # ← 이 숫자가 핵심. 높을수록 꽝 비중 증가
+    MISS_WEIGHT = 800  # ← 이 숫자가 핵심. 높을수록 꽝 비중 증가
 
     pool    = [DummyMiss()] + list(all_titles)
     weights = [MISS_WEIGHT] + [t.weight for t in all_titles]
@@ -1550,15 +1567,38 @@ def gacha_pull():
             gp.points += pts
             total_pts_gained += pts
             results.append({
-            "id": -1,
-            "name": "꽝",
-            "emoji": "💨",
-            "color": "#555566",
-            "rarity": "miss",
-            "is_new": False,
-            "points_gained": pts,
+                "id": -1,
+                "name": "꽝",
+                "emoji": "💨",
+                "color": "#555566",
+                "rarity": "miss",
+                "is_new": False,
+                "points_gained": pts,
             })
             continue
+
+        # ── 칭호 당첨 처리 ──
+        is_new = title.id not in owned_ids
+        if is_new:
+            # 새 칭호: DB에 저장
+            db.session.add(GachaTitleOwned(user_id=user_id, gacha_title_id=title.id))
+            owned_ids.add(title.id)
+        else:
+            # 중복 당첨: 포인트로 보상
+            pts = title.point_value or 1
+            gp.points += pts
+            total_pts_gained += pts
+
+        results.append({
+            "id": title.id,
+            "name": title.name,
+            "emoji": title.emoji,
+            "color": title.color,
+            "rarity": title.rarity,
+            "is_new": is_new,
+            "points_gained": 0 if is_new else (title.point_value or 1),
+        })
+
     db.session.commit()
 
     return jsonify({
