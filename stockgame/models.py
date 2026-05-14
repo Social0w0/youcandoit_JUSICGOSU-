@@ -398,7 +398,7 @@ SHOP_TITLE_SEEDS = [
         'emoji': '🤡',
         'description': '아저씨는 왜 집이 없어요??',
         'price': 5000_0000,
-        'color': "#ffb5b5",
+        'color': "anim:rainbow",
         'sort_order': 3,
     },
     {
@@ -488,7 +488,7 @@ SHOP_TITLE_SEEDS = [
         'emoji': '🐦‍🔥',
         'description': '뭣 4조가 불에 탄다고??!',
         'price': 4_0000_0000_0000,
-        'color': "#ff0000",
+        'color': "anim:fire",
         'sort_order': 7,
     },
     {
@@ -515,7 +515,7 @@ SHOP_TITLE_SEEDS = [
         'emoji': '🎖️',
         'description': '정점',
         'price': 1_0000_0000_0000_0000,
-        'color': "#0000ff",
+        'color': "anim:god",
         'sort_order': 8,
     },
 
