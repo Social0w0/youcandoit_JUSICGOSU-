@@ -1615,12 +1615,13 @@ function applyTitleStyle(el, color, baseCss = '') {
     el.classList.add(cls);
 
   } else if (color.toLowerCase().includes('gradient')) {
-    el.style.cssText = baseCss +
-      `; background:${color};` +
-      ' -webkit-background-clip:text;' +
-      ' -webkit-text-fill-color:transparent;' +
-      ' background-clip:text; color:transparent;';
-
+  // baseCss를 먼저 적용하고, gradient 관련 속성만 추가
+  el.style.cssText = baseCss;
+  el.style.background = color;
+  el.style.webkitBackgroundClip = 'text';
+  el.style.webkitTextFillColor = 'transparent';
+  el.style.backgroundClip = 'text';
+  el.style.color = 'transparent';
   } else {
     el.style.cssText = baseCss + `; color:${color};`;
   }
@@ -2397,8 +2398,12 @@ function renderProfileMainView() {
   const uname = document.getElementById('profile-main-username');
 
   if (equippedTitle) {
-    badge.textContent = `${equippedTitle.emoji} ${equippedTitle.name}`;
-    applyTitleStyle(badge, equippedTitle.color, 'font-size:12px; font-weight:700; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;');
+    // 2400~2401번 줄 교체
+    badge.innerHTML = `<span>${equippedTitle.emoji}</span><span id="profile-title-text">${equippedTitle.name}</span>`;
+    badge.style.cssText = 'display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;';
+
+    const titleTextEl = badge.querySelector('#profile-title-text');
+    applyTitleStyle(titleTextEl, equippedTitle.color, 'font-weight:700;');
     uname.style.fontSize = profileData.username.length > 10 ? '18px' : '24px';
   } else {
     badge.textContent = '';
