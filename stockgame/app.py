@@ -4,7 +4,9 @@ from flask_cors import CORS
 from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Transfer, \
                    Title, UserProfile, seed_titles, check_and_unlock_titles, \
                    ShopTitle, ShopPurchase, seed_shop_titles, \
-                   ShopBackground, ShopBgPurchase, seed_shop_backgrounds
+                   ShopBackground, ShopBgPurchase, seed_shop_backgrounds, \
+                   GachaTitle, GachaTitleOwned, GachaPoint, \
+                   seed_gacha_titles, get_or_create_gacha_point
 import random
 from datetime import datetime
 
@@ -97,6 +99,7 @@ with app.app_context():
     seed_titles()
     seed_shop_titles()
     seed_shop_backgrounds()
+    seed_gacha_titles()
 
     # DB 마이그레이션: avg_price 컬럼이 없으면 추가
     from sqlalchemy import text, inspect
@@ -135,6 +138,17 @@ with app.app_context():
             print("[MIGRATION] custom_bg_slot_count 컬럼 추가 완료")
     except Exception as e:
         print(f"[MIGRATION] user_profile 테이블 없음, 건너뜀: {e}")
+
+    # ── 뽑기 시스템 마이그레이션: equipped_gacha_title_id 컬럼 ──
+    try:
+        profile_cols2 = [c['name'] for c in inspector.get_columns('user_profile')]
+        if 'equipped_gacha_title_id' not in profile_cols2:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE user_profile ADD COLUMN equipped_gacha_title_id INTEGER DEFAULT NULL'))
+                conn.commit()
+            print("[MIGRATION] equipped_gacha_title_id 컬럼 추가 완료")
+    except Exception as e:
+        print(f"[MIGRATION] equipped_gacha_title_id 컬럼 추가 건너뜀: {e}")
 
     # password 컬럼 마이그레이션
     user_cols = [c['name'] for c in inspector.get_columns('user')]
@@ -633,10 +647,14 @@ def ranking():
         profile = UserProfile.query.filter_by(user_id=user_id).first()
         if not profile:
             return None
-        # 상점 칭호 우선, 없으면 업적 칭호
+        # 상점 칭호 우선, 없으면 뽑기 칭호, 없으면 업적 칭호
         shop_title_id = getattr(profile, 'equipped_shop_title_id', None)
         if shop_title_id:
             t = db.session.get(ShopTitle, shop_title_id)
+            return {"name": t.name, "emoji": t.emoji, "color": t.color} if t else None
+        gacha_title_id = getattr(profile, 'equipped_gacha_title_id', None)
+        if gacha_title_id:
+            t = db.session.get(GachaTitle, gacha_title_id)
             return {"name": t.name, "emoji": t.emoji, "color": t.color} if t else None
         if profile.equipped_title_id:
             t = db.session.get(Title, profile.equipped_title_id)
@@ -697,6 +715,7 @@ def get_profile(user_id):
         "username": user.username,
         "equipped_title_id": profile.equipped_title_id,
         "equipped_shop_title_id": getattr(profile, 'equipped_shop_title_id', None),
+        "equipped_gacha_title_id": getattr(profile, 'equipped_gacha_title_id', None),
         "equipped_bg": profile.equipped_bg or "default",
         "total_asset": round(total_asset, 2),
         "peak_asset": round(profile.peak_asset or 0, 2),
@@ -1390,6 +1409,247 @@ def shop_rename_preview(user_id):
         "fee": round(fee, 2),
         "cash": round(user.cash, 2),
         "affordable": user.cash >= fee,
+    })
+
+
+# ─────────────────────────────────────────
+# 뽑기(가챠) 시스템
+# ─────────────────────────────────────────
+
+def _gacha_pull_cost(total_asset: float) -> float:
+    """총 자산 기준으로 1회 뽑기 가격 계산"""
+    if total_asset < 10_000_000:         # 1천만 미만
+        return 100_000
+    elif total_asset < 100_000_000:      # 1천만~1억
+        return 1_000_000
+    else:                                # 1억 이상
+        return 5_000_000
+
+
+def _do_gacha_pulls(count: int):
+    """
+    count 회 뽑기를 수행하고 결과 리스트 반환.
+    각 원소: { gacha_title (GachaTitle obj), is_new (bool) }  or  { points: int, is_new: False }
+    """
+    import random as _rand
+    all_titles = GachaTitle.query.all()
+    pool  = [t for t in all_titles]
+    weights = [t.weight for t in pool]
+    return _rand.choices(pool, weights=weights, k=count)
+
+
+@app.route("/gacha/info/<int:user_id>")
+def gacha_info(user_id):
+    """뽑기 정보 조회: 포인트, 보유 칭호 목록, 전체 칭호 목록"""
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저 없음"}), 404
+
+    # 총 자산 계산
+    holdings = db.session.execute(
+        db.select(Holding).where(Holding.user_id == user_id)
+    ).scalars().all()
+    total_asset = user.cash + sum(
+        db.session.get(Stock, h.stock_id).price * h.quantity for h in holdings
+    )
+
+    gp = get_or_create_gacha_point(user_id)
+
+    owned_ids = set(
+        r.gacha_title_id for r in db.session.execute(
+            db.select(GachaTitleOwned).where(GachaTitleOwned.user_id == user_id)
+        ).scalars().all()
+    )
+
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    equipped_gacha_id = getattr(profile, 'equipped_gacha_title_id', None) if profile else None
+
+    all_gacha = GachaTitle.query.order_by(GachaTitle.sort_order).all()
+
+    pull_cost = _gacha_pull_cost(total_asset)
+
+    return jsonify({
+        "points": gp.points,
+        "pull_cost_1": pull_cost,
+        "pull_cost_10": pull_cost * 10,
+        "cash": round(user.cash, 2),
+        "total_asset": round(total_asset, 2),
+        "equipped_gacha_title_id": equipped_gacha_id,
+        "gacha_titles": [{
+            "id": t.id,
+            "name": t.name,
+            "emoji": t.emoji,
+            "description": t.description,
+            "color": t.color,
+            "rarity": t.rarity,
+            "point_value": t.point_value,
+            "is_point_purchasable": t.is_point_purchasable,
+            "point_price": t.point_price,
+            "owned": t.id in owned_ids,
+        } for t in all_gacha],
+    })
+
+
+@app.route("/gacha/pull", methods=["POST"])
+def gacha_pull():
+    """뽑기 실행. count=1 or 10"""
+    data = request.json or {}
+    user_id = data.get("user_id")
+    count   = int(data.get("count", 1))
+
+    if count not in (1, 10):
+        return jsonify({"error": "count는 1 또는 10만 허용됩니다"}), 400
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저 없음"}), 404
+
+    # 총 자산 계산
+    holdings = db.session.execute(
+        db.select(Holding).where(Holding.user_id == user_id)
+    ).scalars().all()
+    total_asset = user.cash + sum(
+        db.session.get(Stock, h.stock_id).price * h.quantity for h in holdings
+    )
+
+    pull_cost = _gacha_pull_cost(total_asset)
+    total_cost = pull_cost * count
+
+    if user.cash < total_cost:
+        return jsonify({
+            "error": f"현금이 부족합니다 (필요: {int(total_cost):,}원, 보유: {int(user.cash):,}원)"
+        }), 400
+
+    user.cash -= total_cost
+
+    # 보유 칭호 목록
+    owned_ids = set(
+        r.gacha_title_id for r in db.session.execute(
+            db.select(GachaTitleOwned).where(GachaTitleOwned.user_id == user_id)
+        ).scalars().all()
+    )
+
+    gp = get_or_create_gacha_point(user_id)
+
+    drawn = _do_gacha_pulls(count)
+    results = []
+    total_pts_gained = 0
+
+    for title in drawn:
+        is_new = title.id not in owned_ids
+        pts = 0
+        if is_new:
+            owned_ids.add(title.id)
+            db.session.add(GachaTitleOwned(user_id=user_id, gacha_title_id=title.id))
+        else:
+            # 이미 보유 → 포인트 지급
+            pts = title.point_value
+            gp.points += pts
+            total_pts_gained += pts
+
+        results.append({
+            "id": title.id,
+            "name": title.name,
+            "emoji": title.emoji,
+            "color": title.color,
+            "rarity": title.rarity,
+            "is_new": is_new,
+            "points_gained": pts,
+        })
+
+    db.session.commit()
+
+    return jsonify({
+        "results": results,
+        "cash": round(user.cash, 2),
+        "points": gp.points,
+        "total_cost": int(total_cost),
+        "total_points_gained": total_pts_gained,
+    })
+
+
+@app.route("/gacha/equip", methods=["POST"])
+def gacha_equip():
+    """뽑기 칭호 장착/해제"""
+    data = request.json or {}
+    user_id = data.get("user_id")
+    gacha_title_id = data.get("gacha_title_id")   # None이면 해제
+
+    if not user_id:
+        return jsonify({"error": "잘못된 요청"}), 400
+
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        return jsonify({"error": "프로필 없음"}), 404
+
+    if gacha_title_id:
+        owned = db.session.execute(
+            db.select(GachaTitleOwned).where(
+                GachaTitleOwned.user_id == user_id,
+                GachaTitleOwned.gacha_title_id == gacha_title_id
+            )
+        ).scalar_one_or_none()
+        if not owned:
+            return jsonify({"error": "보유하지 않은 뽑기 칭호입니다"}), 403
+
+    profile.equipped_gacha_title_id = gacha_title_id
+    db.session.commit()
+
+    return jsonify({
+        "message": "뽑기 칭호 장착 완료" if gacha_title_id else "뽑기 칭호 해제 완료",
+        "equipped_gacha_title_id": gacha_title_id,
+    })
+
+
+@app.route("/gacha/point_shop/buy", methods=["POST"])
+def gacha_point_buy():
+    """포인트로 뽑기 칭호 구매"""
+    data = request.json or {}
+    user_id       = data.get("user_id")
+    gacha_title_id = data.get("gacha_title_id")
+
+    if not user_id or not gacha_title_id:
+        return jsonify({"error": "잘못된 요청"}), 400
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "유저 없음"}), 404
+
+    title = db.session.get(GachaTitle, gacha_title_id)
+    if not title:
+        return jsonify({"error": "칭호를 찾을 수 없습니다"}), 404
+
+    if not title.is_point_purchasable or title.point_price is None:
+        return jsonify({"error": "이 칭호는 포인트로 구매할 수 없습니다 (🍀 확률의 신은 오직 뽑기로만!)"}), 403
+
+    already = db.session.execute(
+        db.select(GachaTitleOwned).where(
+            GachaTitleOwned.user_id == user_id,
+            GachaTitleOwned.gacha_title_id == gacha_title_id
+        )
+    ).scalar_one_or_none()
+    if already:
+        return jsonify({"error": "이미 보유한 칭호입니다"}), 400
+
+    gp = get_or_create_gacha_point(user_id)
+    if gp.points < title.point_price:
+        return jsonify({
+            "error": f"포인트가 부족합니다 (필요: {title.point_price}pt, 보유: {gp.points}pt)"
+        }), 400
+
+    gp.points -= title.point_price
+    db.session.add(GachaTitleOwned(user_id=user_id, gacha_title_id=gacha_title_id))
+    db.session.commit()
+
+    return jsonify({
+        "message": f"'{title.emoji} {title.name}' 칭호 구매 완료!",
+        "points": gp.points,
+        "gacha_title": {
+            "id": title.id,
+            "name": title.name,
+            "emoji": title.emoji,
+            "color": title.color,
+        }
     })
 
 

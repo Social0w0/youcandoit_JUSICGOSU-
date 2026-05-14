@@ -1017,6 +1017,100 @@
   .custom-slot-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
   .custom-slot-desc  { font-size: 11px; color: var(--muted); }
   .custom-slot-actions { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+
+  /* ── 뽑기 시스템 ── */
+  .gacha-section { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px; }
+  .gacha-top-bar { display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+  .gacha-point-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background: linear-gradient(135deg, rgba(124,110,255,0.15), rgba(168,85,247,0.15));
+    border:1px solid rgba(124,110,255,0.3); border-radius:20px;
+    padding:6px 14px; font-size:13px; font-weight:700; color:var(--accent2);
+  }
+  .gacha-cost-info { font-size:12px; color:var(--muted); flex:1; text-align:right; }
+  .gacha-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+  .btn-gacha-pull {
+    padding:14px; border:none; border-radius:10px; font-size:14px; font-weight:700;
+    cursor:pointer; transition:all .15s; position:relative; overflow:hidden;
+  }
+  .btn-gacha-1 { background: linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; }
+  .btn-gacha-10 { background: linear-gradient(135deg, #f59e0b, #ef4444); color:#fff; }
+  .btn-gacha-pull:hover { transform:translateY(-1px); filter:brightness(1.1); }
+  .btn-gacha-pull:active { transform:translateY(0); }
+  .btn-gacha-pull:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+  /* 뽑기 결과 오버레이 */
+  .gacha-result-overlay {
+    position:fixed; inset:0; z-index:9000;
+    background:rgba(0,0,0,0.88); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:16px;
+    animation: fadeInOverlay .2s ease;
+  }
+  @keyframes fadeInOverlay { from{opacity:0} to{opacity:1} }
+  .gacha-result-title { font-size:22px; font-weight:900; color:var(--text); margin-bottom:4px; }
+  .gacha-result-grid {
+    display:grid; gap:10px; max-width:680px; width:90%;
+    grid-template-columns: repeat(auto-fill, minmax(120px,1fr));
+  }
+  .gacha-card {
+    background:var(--bg3); border:2px solid var(--border);
+    border-radius:12px; padding:14px 10px; text-align:center;
+    position:relative; animation: cardPop .25s ease both;
+    transition: border-color .2s;
+  }
+  .gacha-card.is-new { border-color: rgba(250,204,21,0.6); background: rgba(250,204,21,0.05); }
+  .gacha-card.rarity-rare   { border-color: rgba(168,85,247,0.5); }
+  .gacha-card.rarity-epic   { border-color: rgba(245,158,11,0.6); }
+  .gacha-card.rarity-legendary { border-color: rgba(239,68,68,0.7); box-shadow:0 0 14px rgba(239,68,68,0.25); }
+  @keyframes cardPop { from{transform:scale(.7);opacity:0} to{transform:scale(1);opacity:1} }
+  .gacha-card-emoji { font-size:28px; margin-bottom:6px; }
+  .gacha-card-name  { font-size:11px; font-weight:700; line-height:1.3; margin-bottom:4px; }
+  .gacha-card-badge {
+    font-size:9px; padding:2px 6px; border-radius:10px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em;
+  }
+  .badge-new  { background:rgba(250,204,21,0.15); color:#facc15; border:1px solid rgba(250,204,21,0.4); }
+  .badge-dup  { background:rgba(100,116,139,0.15); color:var(--muted); border:1px solid var(--border); }
+  .badge-pts  { color:#a78bfa; font-size:10px; margin-top:3px; display:block; }
+  .gacha-result-summary { font-size:13px; color:var(--muted); text-align:center; }
+  .gacha-result-close {
+    padding:10px 40px; background:var(--accent); border:none; border-radius:8px;
+    color:#fff; font-size:14px; font-weight:700; cursor:pointer; margin-top:4px;
+    transition: background .15s;
+  }
+  .gacha-result-close:hover { background:var(--accent2); }
+
+  /* 뽑기 칭호 카드 */
+  .gacha-title-card {
+    background:var(--bg3); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; display:flex; align-items:center; gap:12px; cursor:pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .gacha-title-card:hover { border-color: var(--border2); }
+  .gacha-title-card.equipped { border-color:var(--accent) !important; background:rgba(124,110,255,0.08); }
+  .gacha-title-card.locked { opacity:.45; cursor:default; filter:grayscale(0.5); }
+  .gacha-title-card-emoji { font-size:24px; flex-shrink:0; }
+  .gacha-title-card-info { flex:1; min-width:0; }
+  .gacha-title-card-name { font-size:13px; font-weight:700; }
+  .gacha-title-card-desc { font-size:11px; color:var(--muted); }
+  .gacha-rarity-badge {
+    font-size:9px; padding:2px 7px; border-radius:10px; font-weight:700;
+    text-transform:uppercase; flex-shrink:0;
+  }
+  .rarity-common    { background:rgba(148,163,184,0.1); color:#94a3b8; border:1px solid rgba(148,163,184,0.3); }
+  .rarity-rare      { background:rgba(168,85,247,0.1);  color:#c084fc; border:1px solid rgba(168,85,247,0.3); }
+  .rarity-epic      { background:rgba(245,158,11,0.1);  color:#fbbf24; border:1px solid rgba(245,158,11,0.3); }
+  .rarity-legendary { background:rgba(239,68,68,0.1);   color:#f87171; border:1px solid rgba(239,68,68,0.4); }
+
+  /* 포인트 상점 카드 */
+  .gacha-point-shop-card {
+    background:var(--bg3); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; display:flex; align-items:center; gap:12px;
+    transition: border-color .15s;
+  }
+  .gacha-point-shop-card:hover:not(.owned) { border-color:var(--border2); }
+  .gacha-point-shop-card.owned { border-color:rgba(34,197,94,0.4); background:rgba(34,197,94,0.04); }
+  .gacha-point-shop-card.locked-forever { border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.03); }
 </style>
 </head>
 <body>
@@ -1134,7 +1228,66 @@
       <div class="sec-title">🛒 상점</div>
     </div>
 
-    <!-- 칭호 섹션 (활성화) -->
+    <!-- ✨ 뽑기 섹션 -->
+    <div class="gacha-section" id="gacha-section">
+      <div class="sec-head" style="margin-bottom:16px;">
+        <div class="sec-title">🎰 뽑기</div>
+      </div>
+
+      <!-- 포인트 & 비용 안내 -->
+      <div class="gacha-top-bar">
+        <div class="gacha-point-badge">
+          ✨ <span id="gacha-points-display">0</span> pt
+        </div>
+        <div class="gacha-cost-info" id="gacha-cost-info">
+          1회당 <span id="gacha-cost-1" style="color:var(--accent); font-weight:700;">—원</span>
+          &nbsp;·&nbsp; 10회 <span id="gacha-cost-10" style="color:var(--amber); font-weight:700;">—원</span>
+        </div>
+      </div>
+
+      <!-- 뽑기 버튼 -->
+      <div class="gacha-btns">
+        <button class="btn-gacha-pull btn-gacha-1" id="btn-gacha-1" onclick="doPull(1)">
+          🎲 1회 뽑기
+        </button>
+        <button class="btn-gacha-pull btn-gacha-10" id="btn-gacha-10" onclick="doPull(10)">
+          🎰 10회 뽑기
+        </button>
+      </div>
+
+      <!-- 탭: 보유 칭호 / 포인트 상점 -->
+      <div style="display:flex; gap:8px; margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+        <button id="gacha-tab-owned" onclick="switchGachaTab('owned')"
+          style="background:var(--accent); color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;">
+          🎁 보유 칭호
+        </button>
+        <button id="gacha-tab-shop" onclick="switchGachaTab('shop')"
+          style="background:var(--bg3); color:var(--muted); border:1px solid var(--border); border-radius:6px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer;">
+          🛍️ 포인트 상점
+        </button>
+      </div>
+
+      <!-- 보유 칭호 패널 -->
+      <div id="gacha-panel-owned">
+        <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+          장착할 칭호를 선택하세요. 중복 획득 시 포인트가 지급됩니다.
+        </div>
+        <div id="gacha-owned-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px;">
+          <div class="empty-state">로딩 중...</div>
+        </div>
+      </div>
+
+      <!-- 포인트 상점 패널 -->
+      <div id="gacha-panel-shop" style="display:none;">
+        <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+          포인트를 모아 원하는 칭호를 구매할 수 있습니다.
+          <span style="color:rgba(239,68,68,0.8)">단, 🍀 확률의 신은 오직 뽑기로만 획득 가능합니다.</span>
+        </div>
+        <div id="gacha-shop-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px;">
+          <div class="empty-state">로딩 중...</div>
+        </div>
+      </div>
+    </div>
     <div style="background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px;">
       <div class="sec-head" style="margin-bottom:20px;">
         <div class="sec-title">🏷️ 칭호</div>
@@ -1865,6 +2018,7 @@ function showShop() {
   prevPanel = 'shop';
   loadShopTitles();
   loadShopBackgrounds();
+  loadGachaInfo();
 
   // 닉네임 변경 섹션 초기화
   const curEl = document.getElementById('rename-current');
@@ -2393,10 +2547,13 @@ function renderProfileMainView() {
     headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
   }
 
-  // 칭호 뱃지 + 닉네임 (상점 칭호 우선, 없으면 업적 칭호)
+  // 칭호 뱃지 + 닉네임 (상점 칭호 우선, 뽑기 칭호, 없으면 업적 칭호)
   let equippedTitle = null;
   if (profileData.equipped_shop_title_id) {
     equippedTitle = (profileData.shop_titles || []).find(t => t.id === profileData.equipped_shop_title_id);
+  }
+  if (!equippedTitle && profileData.equipped_gacha_title_id && gachaData) {
+    equippedTitle = gachaData.gacha_titles?.find(t => t.id === profileData.equipped_gacha_title_id);
   }
   if (!equippedTitle && profileData.equipped_title_id) {
     equippedTitle = (profileData.titles || []).find(t => t.id === profileData.equipped_title_id);
@@ -2652,10 +2809,13 @@ function updateTopbarTitle() {
   const badge = document.getElementById('topbar-title-badge');
   if (!profileData) { badge.style.display = 'none'; return; }
 
-  // 상점 칭호 우선, 없으면 업적 칭호
+  // 상점 칭호 우선, 뽑기 칭호, 없으면 업적 칭호
   let t = null;
   if (profileData.equipped_shop_title_id) {
     t = (profileData.shop_titles || []).find(x => x.id === profileData.equipped_shop_title_id);
+  }
+  if (!t && profileData.equipped_gacha_title_id && gachaData) {
+    t = gachaData.gacha_titles?.find(x => x.id === profileData.equipped_gacha_title_id);
   }
   if (!t && profileData.equipped_title_id) {
     t = (profileData.titles || []).find(x => x.id === profileData.equipped_title_id);
@@ -3046,6 +3206,324 @@ async function loadRenamePreview() {
     if (btnEl)  btnEl.style.opacity = data.affordable ? '1' : '0.45';
   } catch(e) {
     // 실패해도 UI는 보여줌
+  }
+}
+
+// ─────────────────────────────────────────
+// 뽑기(가챠) 시스템 JS
+// ─────────────────────────────────────────
+
+let gachaData = null;   // 마지막으로 로드된 gacha info
+let gachaTab = 'owned'; // 현재 탭
+
+const RARITY_LABEL = { common:'커먼', rare:'레어', epic:'에픽', legendary:'레전더리' };
+const RARITY_ORDER = { common:0, rare:1, epic:2, legendary:3 };
+
+async function loadGachaInfo() {
+  if (!userId) return;
+  try {
+    const res = await fetch(`/gacha/info/${userId}`);
+    gachaData = await res.json();
+    renderGachaUI();
+  } catch(e) {
+    console.error('gacha info error', e);
+  }
+}
+
+function renderGachaUI() {
+  if (!gachaData) return;
+  const d = gachaData;
+
+  document.getElementById('gacha-points-display').textContent = d.points.toLocaleString();
+  document.getElementById('gacha-cost-1').textContent  = fmt(d.pull_cost_1) + '원';
+  document.getElementById('gacha-cost-10').textContent = fmt(d.pull_cost_10) + '원';
+
+  renderGachaOwnedGrid();
+  renderGachaShopGrid();
+}
+
+function switchGachaTab(tab) {
+  gachaTab = tab;
+  const ownedBtn = document.getElementById('gacha-tab-owned');
+  const shopBtn  = document.getElementById('gacha-tab-shop');
+  const ownedPanel = document.getElementById('gacha-panel-owned');
+  const shopPanel  = document.getElementById('gacha-panel-shop');
+
+  if (tab === 'owned') {
+    ownedBtn.style.cssText = 'background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;';
+    shopBtn.style.cssText  = 'background:var(--bg3);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;';
+    ownedPanel.style.display = 'block';
+    shopPanel.style.display  = 'none';
+  } else {
+    shopBtn.style.cssText  = 'background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;';
+    ownedBtn.style.cssText = 'background:var(--bg3);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;';
+    ownedPanel.style.display = 'none';
+    shopPanel.style.display  = 'block';
+  }
+}
+
+function renderGachaOwnedGrid() {
+  if (!gachaData) return;
+  const grid = document.getElementById('gacha-owned-grid');
+  const titles = gachaData.gacha_titles;
+  const equippedId = gachaData.equipped_gacha_title_id;
+
+  const ownedTitles = titles.filter(t => t.owned);
+  const lockedTitles = titles.filter(t => !t.owned);
+  const all = [...ownedTitles, ...lockedTitles];
+
+  if (all.length === 0) {
+    grid.innerHTML = '<div class="empty-state">아직 뽑기 칭호가 없습니다</div>';
+    return;
+  }
+
+  grid.innerHTML = all.map(t => {
+    const isEquipped = t.id === equippedId;
+    const isLocked = !t.owned;
+    const nameStyle = buildTitleNameStyle(t.color);
+    const rarityLabel = RARITY_LABEL[t.rarity] || t.rarity;
+    return `
+      <div class="gacha-title-card ${isEquipped ? 'equipped' : ''} ${isLocked ? 'locked' : ''}"
+           onclick="${isLocked ? '' : `equipGachaTitle(${t.id})`}">
+        <div class="gacha-title-card-emoji">${t.emoji}</div>
+        <div class="gacha-title-card-info">
+          <div class="gacha-title-card-name ${isLocked ? '' : buildTitleAnimClass(t.color)}"
+               style="${isLocked ? 'color:var(--muted)' : nameStyle}">${t.name}</div>
+          <div class="gacha-title-card-desc">${t.description || ''}</div>
+          ${isEquipped ? '<div style="font-size:10px;color:var(--accent);margin-top:2px;">✓ 장착 중</div>' : ''}
+          ${isLocked ? '<div style="font-size:10px;color:var(--muted);margin-top:2px;">🔒 미획득</div>' : ''}
+        </div>
+        <span class="gacha-rarity-badge rarity-${t.rarity}">${rarityLabel}</span>
+      </div>`;
+  }).join('');
+}
+
+function renderGachaShopGrid() {
+  if (!gachaData) return;
+  const grid = document.getElementById('gacha-shop-grid');
+  const titles = gachaData.gacha_titles;
+  const pts = gachaData.points;
+
+  // 포인트 구매 가능 칭호만 (확률의 신 제외)
+  const shopTitles = [...titles].sort((a, b) => (a.point_price || 99999) - (b.point_price || 99999));
+
+  grid.innerHTML = shopTitles.map(t => {
+    const isLocked = !t.is_point_purchasable;
+    const isOwned  = t.owned;
+    const canAfford = pts >= (t.point_price || 0);
+    const nameStyle = buildTitleNameStyle(t.color);
+    const rarityLabel = RARITY_LABEL[t.rarity] || t.rarity;
+
+    if (isLocked) {
+      // 확률의 신 — 포인트 구매 불가 표시
+      return `
+        <div class="gacha-point-shop-card locked-forever">
+          <div style="font-size:24px;flex-shrink:0;">${t.emoji}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="gacha-title-card-name ${buildTitleAnimClass(t.color)}" style="${nameStyle}">${t.name}</div>
+            <div class="gacha-title-card-desc">${t.description || ''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <span class="gacha-rarity-badge rarity-${t.rarity}" style="display:block;margin-bottom:4px;">${rarityLabel}</span>
+            <span style="font-size:10px;color:rgba(239,68,68,0.7);">🚫 구매 불가</span>
+          </div>
+        </div>`;
+    }
+
+    const btnLabel = isOwned ? '✓ 보유 중' :
+                     (canAfford ? `${(t.point_price||0).toLocaleString()} pt 구매` : `${(t.point_price||0).toLocaleString()} pt 부족`);
+    const btnStyle = isOwned
+      ? 'background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:default;'
+      : (canAfford
+          ? 'background:rgba(124,110,255,0.15);color:var(--accent);border:1px solid rgba(124,110,255,0.35);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;'
+          : 'background:rgba(100,116,139,0.1);color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:not-allowed;');
+
+    return `
+      <div class="gacha-point-shop-card ${isOwned ? 'owned' : ''}">
+        <div style="font-size:24px;flex-shrink:0;">${t.emoji}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="gacha-title-card-name ${buildTitleAnimClass(t.color)}" style="${nameStyle}">${t.name}</div>
+          <div class="gacha-title-card-desc">${t.description || ''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="gacha-rarity-badge rarity-${t.rarity}">${rarityLabel}</span>
+          <button style="${btnStyle}" ${isOwned || !canAfford ? 'disabled' : ''} onclick="${isOwned ? '' : `buyGachaWithPoint(${t.id})`}">${btnLabel}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function buildTitleNameStyle(color) {
+  if (!color) return '';
+  if (color.startsWith('anim:')) return '';
+  if (color.toLowerCase().includes('gradient'))
+    return `background:${color};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;`;
+  return `color:${color};`;
+}
+
+function buildTitleAnimClass(color) {
+  if (color && color.startsWith('anim:')) return 'title-anim-' + color.slice(5);
+  return '';
+}
+
+async function doPull(count) {
+  if (!userId) return;
+  const btn1  = document.getElementById('btn-gacha-1');
+  const btn10 = document.getElementById('btn-gacha-10');
+  btn1.disabled = true; btn10.disabled = true;
+
+  try {
+    const res = await fetch('/gacha/pull', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: userId, count })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast('⚠️ ' + (data.error || '뽑기 실패'), 'negative');
+      return;
+    }
+
+    // 캐시 업데이트
+    if (gachaData) {
+      gachaData.points = data.points;
+      data.results.forEach(r => {
+        if (r.is_new) {
+          const found = gachaData.gacha_titles.find(t => t.id === r.id);
+          if (found) found.owned = true;
+        }
+      });
+      renderGachaUI();
+    }
+
+    // topbar cash 업데이트
+    if (typeof cash !== 'undefined') cash = data.cash;
+    const cashEl = document.getElementById('topbar-cash');
+    if (cashEl) cashEl.textContent = fmt(data.cash) + '원';
+
+    // 결과 오버레이 표시
+    showGachaResultOverlay(data.results, data.points, data.total_points_gained);
+
+  } catch(e) {
+    showToast('❌ 네트워크 오류', 'negative');
+  } finally {
+    btn1.disabled = false; btn10.disabled = false;
+  }
+}
+
+function showGachaResultOverlay(results, totalPts, ptsGained) {
+  const overlay = document.createElement('div');
+  overlay.className = 'gacha-result-overlay';
+  overlay.id = 'gacha-overlay';
+
+  const newCount = results.filter(r => r.is_new).length;
+  const title = newCount > 0 ? `✨ 신규 ${newCount}개 획득!` : '🎲 뽑기 완료';
+
+  const cards = results.map((r, i) => {
+    const rarityLabel = RARITY_LABEL[r.rarity] || r.rarity;
+    const nameStyle = buildTitleNameStyle(r.color);
+    const animClass = buildTitleAnimClass(r.color);
+    const delay = `animation-delay:${i * 0.05}s`;
+    return `
+      <div class="gacha-card ${r.is_new ? 'is-new' : ''} rarity-${r.rarity}" style="${delay}">
+        <div class="gacha-card-emoji">${r.emoji}</div>
+        <div class="gacha-card-name ${animClass}" style="${nameStyle}">${r.name}</div>
+        <span class="gacha-card-badge ${r.is_new ? 'badge-new' : 'badge-dup'}">${r.is_new ? 'NEW!' : '중복'}</span>
+        ${r.points_gained > 0 ? `<span class="badge-pts">+${r.points_gained}pt</span>` : ''}
+        <div style="font-size:9px;color:var(--muted);margin-top:3px;">${rarityLabel}</div>
+      </div>`;
+  }).join('');
+
+  const summary = ptsGained > 0
+    ? `포인트 +${ptsGained}pt 획득 · 총 포인트: ${totalPts.toLocaleString()}pt`
+    : `총 포인트: ${totalPts.toLocaleString()}pt`;
+
+  overlay.innerHTML = `
+    <div class="gacha-result-title">${title}</div>
+    <div class="gacha-result-grid">${cards}</div>
+    <div class="gacha-result-summary">${summary}</div>
+    <button class="gacha-result-close" onclick="closeGachaOverlay()">확인</button>`;
+
+  document.body.appendChild(overlay);
+}
+
+function closeGachaOverlay() {
+  const el = document.getElementById('gacha-overlay');
+  if (el) el.remove();
+}
+
+async function equipGachaTitle(titleId) {
+  if (!userId) return;
+  const profile = profileData;
+  const isEquipped = (profile?.equipped_gacha_title_id === titleId);
+  const newId = isEquipped ? null : titleId;
+
+  try {
+    const res = await fetch('/gacha/equip', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: userId, gacha_title_id: newId })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('⚠️ ' + data.error, 'negative'); return; }
+
+    if (gachaData) gachaData.equipped_gacha_title_id = newId;
+    if (profileData) profileData.equipped_gacha_title_id = newId;
+
+    // 다른 칭호 슬롯 해제 (뽑기 칭호 장착 시)
+    if (newId && profileData) {
+      profileData.equipped_shop_title_id = null;
+      profileData.equipped_title_id = null;
+    }
+
+    renderGachaOwnedGrid();
+    updateTopbarTitle();
+    showToast(newId ? '✨ 뽑기 칭호 장착!' : '칭호 해제', 'positive');
+  } catch(e) {
+    showToast('❌ 오류', 'negative');
+  }
+}
+
+async function buyGachaWithPoint(titleId) {
+  if (!userId) return;
+  try {
+    const res = await fetch('/gacha/point_shop/buy', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: userId, gacha_title_id: titleId })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast('⚠️ ' + data.error, 'negative'); return; }
+
+    if (gachaData) {
+      gachaData.points = data.points;
+      const found = gachaData.gacha_titles.find(t => t.id === titleId);
+      if (found) found.owned = true;
+      renderGachaUI();
+    }
+    showToast('🎉 ' + data.message, 'positive');
+  } catch(e) {
+    showToast('❌ 오류', 'negative');
+  }
+}
+
+function updateTopbarTitle() {
+  if (!profileData) return;
+  // equipped_gacha_title_id 우선
+  let title = null;
+  if (profileData.equipped_gacha_title_id && gachaData) {
+    title = gachaData.gacha_titles?.find(t => t.id === profileData.equipped_gacha_title_id);
+  }
+  // 없으면 기존 shop/achievement 로직 유지 (기존 코드가 이미 처리)
+  if (!title) return;
+
+  const badge = document.getElementById('topbar-title-badge');
+  if (badge) {
+    badge.style.display = 'inline';
+    badge.innerHTML = `<span>${title.emoji}</span><span id="topbar-gtitle-text">${title.name}</span>`;
+    const nameEl = document.getElementById('topbar-gtitle-text');
+    if (nameEl) applyTitleStyle(nameEl, title.color, 'font-weight:700;font-size:11px;');
   }
 }
 

@@ -590,6 +590,201 @@ def seed_shop_backgrounds():
 
 
 # ── 칭호 자동 지급 헬퍼 (app.py의 매수/매도/포트폴리오 API에서 호출) ─
+# ── 뽑기(가챠) 시스템 ──────────────────────────────────────────────
+
+# 뽑기 전용 칭호 정의
+# is_point_purchasable: False 이면 포인트로 구매 불가 (확률의 신 등)
+# rarity: 'common'(1pt) | 'rare'(2~3pt) | 'epic' | 'legendary'
+class GachaTitle(db.Model):
+    __tablename__ = 'gacha_title'
+    id                  = db.Column(db.Integer, primary_key=True)
+    name                = db.Column(db.String(30), nullable=False)
+    emoji               = db.Column(db.String(10), nullable=False)
+    description         = db.Column(db.String(100))
+    color               = db.Column(db.String(100), nullable=False)
+    rarity              = db.Column(db.String(20), nullable=False, default='common')  # common/rare/epic/legendary
+    weight              = db.Column(db.Integer, nullable=False, default=100)          # 뽑기 가중치 (높을수록 잘 나옴)
+    point_value         = db.Column(db.Integer, nullable=False, default=1)            # 뽑혔을 때 지급 포인트 (꽝 역할)
+    is_point_purchasable= db.Column(db.Boolean, nullable=False, default=True)         # 포인트 상점에서 구매 가능 여부
+    point_price         = db.Column(db.Integer, nullable=True)                        # 포인트 상점 구매 가격 (None=구매불가)
+    sort_order          = db.Column(db.Integer, default=0)
+
+
+# 유저의 뽑기 칭호 보유 기록
+class GachaTitleOwned(db.Model):
+    __tablename__ = 'gacha_title_owned'
+    id              = db.Column(db.Integer, primary_key=True)
+    user_id         = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    gacha_title_id  = db.Column(db.Integer, db.ForeignKey('gacha_title.id'), nullable=False)
+    obtained_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# 유저 뽑기 포인트 (현금과 분리)
+class GachaPoint(db.Model):
+    __tablename__ = 'gacha_point'
+    id          = db.Column(db.Integer, primary_key=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    points      = db.Column(db.Integer, nullable=False, default=0)
+    updated_at  = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# 유저가 장착 중인 뽑기 칭호 (UserProfile에 컬럼 추가 대신 별도 관리)
+# → UserProfile에 equipped_gacha_title_id 컬럼을 마이그레이션으로 추가
+
+
+# ── 뽑기 칭호 시드 데이터 ────────────────────────────────────────
+GACHA_TITLE_SEEDS = [
+    # ── common (weight 120~200, 1pt) ──
+    {
+        'id': 1,  'name': '행운아', 'emoji': '🎲',
+        'description': '운이 좋은 사람, 그게 나야',
+        'color': '#a3e635', 'rarity': 'common', 'weight': 200,
+        'point_value': 1, 'is_point_purchasable': True, 'point_price': 30, 'sort_order': 1,
+    },
+    {
+        'id': 2,  'name': '복권 수집가', 'emoji': '🎫',
+        'description': '긁다 보면 언젠간 터진다',
+        'color': '#facc15', 'rarity': 'common', 'weight': 180,
+        'point_value': 1, 'is_point_purchasable': True, 'point_price': 35, 'sort_order': 2,
+    },
+    {
+        'id': 3,  'name': '슬롯머신 마스터', 'emoji': '🎰',
+        'description': '딩딩딩~ 7이 세 개!',
+        'color': '#fb923c', 'rarity': 'common', 'weight': 160,
+        'point_value': 1, 'is_point_purchasable': True, 'point_price': 40, 'sort_order': 3,
+    },
+    {
+        'id': 4,  'name': '뽑기왕', 'emoji': '🎯',
+        'description': '뽑기라면 자신 있어',
+        'color': '#38bdf8', 'rarity': 'common', 'weight': 150,
+        'point_value': 1, 'is_point_purchasable': True, 'point_price': 40, 'sort_order': 4,
+    },
+    {
+        'id': 5,  'name': '캡슐토이 중독자', 'emoji': '🪆',
+        'description': '또 돌렸어... 또 꽝이야...',
+        'color': '#c084fc', 'rarity': 'common', 'weight': 140,
+        'point_value': 1, 'is_point_purchasable': True, 'point_price': 45, 'sort_order': 5,
+    },
+    {
+        'id': 6,  'name': '기대치 계산기', 'emoji': '🧮',
+        'description': '기댓값? 나는 항상 마이너스지',
+        'color': '#94a3b8', 'rarity': 'common', 'weight': 130,
+        'point_value': 1, 'is_point_purchasable': True, 'point_price': 45, 'sort_order': 6,
+    },
+    {
+        'id': 7,  'name': '운빨 이론가', 'emoji': '🔮',
+        'description': '오늘은 분명히 나올 차례야',
+        'color': '#818cf8', 'rarity': 'common', 'weight': 120,
+        'point_value': 1, 'is_point_purchasable': True, 'point_price': 50, 'sort_order': 7,
+    },
+    # ── rare (weight 40~80, 2~3pt) ──
+    {
+        'id': 8,  'name': '황금 손가락', 'emoji': '☝️',
+        'description': '내가 고르면 반드시 나온다',
+        'color': 'anim:gold', 'rarity': 'rare', 'weight': 80,
+        'point_value': 2, 'is_point_purchasable': True, 'point_price': 120, 'sort_order': 10,
+    },
+    {
+        'id': 9,  'name': '네잎클로버', 'emoji': '🍀',
+        'description': '행운이 따르는 자',
+        'color': '#4ade80', 'rarity': 'rare', 'weight': 70,
+        'point_value': 2, 'is_point_purchasable': True, 'point_price': 130, 'sort_order': 11,
+    },
+    {
+        'id': 10, 'name': '럭키 세븐', 'emoji': '7️⃣',
+        'description': '777! 잭팟!',
+        'color': 'anim:rainbow', 'rarity': 'rare', 'weight': 60,
+        'point_value': 2, 'is_point_purchasable': True, 'point_price': 150, 'sort_order': 12,
+    },
+    {
+        'id': 11, 'name': '도박사의 오류', 'emoji': '🎭',
+        'description': '이번엔 진짜 나올 것 같은데...',
+        'color': '#f472b6', 'rarity': 'rare', 'weight': 55,
+        'point_value': 2, 'is_point_purchasable': True, 'point_price': 160, 'sort_order': 13,
+    },
+    {
+        'id': 12, 'name': '뽑기 중독 치료 중', 'emoji': '🏥',
+        'description': '다음이 마지막이야... 진짜로',
+        'color': '#67e8f9', 'rarity': 'rare', 'weight': 45,
+        'point_value': 3, 'is_point_purchasable': True, 'point_price': 200, 'sort_order': 14,
+    },
+    {
+        'id': 13, 'name': '별의 별', 'emoji': '⭐',
+        'description': '별을 따다 담은 자',
+        'color': 'anim:shimmer', 'rarity': 'rare', 'weight': 40,
+        'point_value': 3, 'is_point_purchasable': True, 'point_price': 220, 'sort_order': 15,
+    },
+    # ── epic (weight 8~20, 3pt) ──
+    {
+        'id': 14, 'name': '확률 파괴자', 'emoji': '💥',
+        'description': '0.1%를 뚫은 자',
+        'color': 'anim:fire', 'rarity': 'epic', 'weight': 20,
+        'point_value': 3, 'is_point_purchasable': True, 'point_price': 500, 'sort_order': 20,
+    },
+    {
+        'id': 15, 'name': '운명의 선택자', 'emoji': '⚡',
+        'description': '운명은 내 손 안에',
+        'color': 'anim:neon', 'rarity': 'epic', 'weight': 15,
+        'point_value': 3, 'is_point_purchasable': True, 'point_price': 600, 'sort_order': 21,
+    },
+    {
+        'id': 16, 'name': '카지노 디스트로이어', 'emoji': '🃏',
+        'description': '카지노를 무너뜨린 전설',
+        'color': 'anim:glitch', 'rarity': 'epic', 'weight': 10,
+        'point_value': 3, 'is_point_purchasable': True, 'point_price': 700, 'sort_order': 22,
+    },
+    {
+        'id': 17, 'name': '은하수 뽑기꾼', 'emoji': '🌌',
+        'description': '우주에서도 꽝은 꽝이야',
+        'color': 'anim:galaxy', 'rarity': 'epic', 'weight': 8,
+        'point_value': 3, 'is_point_purchasable': True, 'point_price': 800, 'sort_order': 23,
+    },
+    # ── legendary (weight 1~3, 3pt) — 포인트 구매 가능 ──
+    {
+        'id': 18, 'name': '신의 한 수', 'emoji': '🎖️',
+        'description': '전설의 경지에 도달한 뽑기꾼',
+        'color': 'anim:god', 'rarity': 'legendary', 'weight': 3,
+        'point_value': 3, 'is_point_purchasable': True, 'point_price': 2000, 'sort_order': 30,
+    },
+    {
+        'id': 19, 'name': '무한 루프', 'emoji': '♾️',
+        'description': '뽑고 또 뽑고 뽑고 또 뽑고',
+        'color': 'anim:ice', 'rarity': 'legendary', 'weight': 2,
+        'point_value': 3, 'is_point_purchasable': True, 'point_price': 2500, 'sort_order': 31,
+    },
+    # ── legendary (포인트 구매 불가 — 확률의 신) ──
+    {
+        'id': 20, 'name': '확률의 신', 'emoji': '🍀',
+        'description': '오직 뽑기로만 얻을 수 있는 전설',
+        'color': 'anim:god', 'rarity': 'legendary', 'weight': 1,
+        'point_value': 3, 'is_point_purchasable': False, 'point_price': None, 'sort_order': 99,
+    },
+]
+
+
+def seed_gacha_titles():
+    """앱 시작 시 GachaTitle 테이블을 동기화."""
+    existing = {t.id: t for t in GachaTitle.query.all()}
+    for data in GACHA_TITLE_SEEDS:
+        if data['id'] not in existing:
+            db.session.add(GachaTitle(**data))
+        else:
+            t = existing[data['id']]
+            for k, v in data.items():
+                if k != 'id':
+                    setattr(t, k, v)
+    db.session.commit()
+
+
+def get_or_create_gacha_point(user_id: int) -> 'GachaPoint':
+    gp = GachaPoint.query.filter_by(user_id=user_id).first()
+    if not gp:
+        gp = GachaPoint(user_id=user_id, points=0)
+        db.session.add(gp)
+        db.session.flush()
+    return gp
+
+
 def check_and_unlock_titles(user_id: int, total_asset: float):
     """
     total_asset 기준으로 조건을 충족하는 칭호를 자동 지급한다.
