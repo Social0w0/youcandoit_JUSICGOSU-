@@ -515,6 +515,94 @@
   .title-unlock-toast .unlock-label { font-size: 11px; color: var(--muted); }
   .title-unlock-toast .unlock-name  { font-size: 18px; font-weight: 700; margin-top: 2px; }
 
+  /* ── 칭호 애니메이션 ── */
+  @keyframes titleShimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position:  200% center; }
+  }
+  @keyframes titleRainbow {
+    0%   { filter: hue-rotate(0deg);   }
+    100% { filter: hue-rotate(360deg); }
+  }
+  @keyframes titlePulse {
+    0%, 100% { opacity: 1;    text-shadow: 0 0 8px currentColor, 0 0 20px currentColor; }
+    50%       { opacity: 0.7; text-shadow: 0 0 4px currentColor, 0 0 8px currentColor;  }
+  }
+  @keyframes titleFire {
+    0%   { background-position: 0%   50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0%   50%; }
+  }
+  @keyframes titleGlitch {
+    0%,90%,100% { transform: translate(0); }
+    92%  { transform: translate(-2px, 1px); }
+    94%  { transform: translate(2px, -1px); }
+    96%  { transform: translate(-1px, 2px); }
+    98%  { transform: translate(1px, -2px); }
+  }
+
+  /* shimmer 그라데이션 칭호 */
+  .title-anim-shimmer {
+    background-size: 200% auto !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    animation: titleShimmer 2.4s linear infinite !important;
+  }
+  /* rainbow 칭호 */
+  .title-anim-rainbow {
+    background: linear-gradient(90deg,#ff6b6b,#ffd93d,#6bcb77,#4d96ff,#c77dff) !important;
+    background-size: 200% auto !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    animation: titleShimmer 1.8s linear infinite !important;
+  }
+  /* neon pulse 칭호 */
+  .title-anim-neon {
+    animation: titlePulse 1.6s ease-in-out infinite !important;
+  }
+  /* fire gradient 칭호 */
+  .title-anim-fire {
+    background: linear-gradient(270deg,#ff0000,#ff7700,#ffdd00,#ff7700,#ff0000) !important;
+    background-size: 300% 300% !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    animation: titleFire 2s ease infinite !important;
+  }
+  /* ice gradient 칭호 */
+  .title-anim-ice {
+    background: linear-gradient(90deg,#a8edea,#ffffff,#74b9ff,#ffffff,#a8edea) !important;
+    background-size: 200% auto !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    animation: titleShimmer 2.8s linear infinite !important;
+  }
+  /* galaxy 칭호 */
+  .title-anim-galaxy {
+    background: linear-gradient(90deg,#9b59b6,#3498db,#1abc9c,#f39c12,#9b59b6) !important;
+    background-size: 200% auto !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    animation: titleShimmer 3s linear infinite !important;
+  }
+  /* gold shimmer 칭호 */
+  .title-anim-gold {
+    background: linear-gradient(90deg,#c9a227,#ffe066,#c9a227,#fff4b2,#c9a227) !important;
+    background-size: 200% auto !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    animation: titleShimmer 2s linear infinite !important;
+  }
+  /* glitch 칭호 */
+  .title-anim-glitch {
+    animation: titleGlitch 3s steps(1) infinite !important;
+  }
+
   /* ── DETAIL VIEW ── */
   .detail-wrap {
     max-width: 900px; margin: 0 auto;
@@ -1502,6 +1590,59 @@ function toggleNews() {
 }
 
 // ── RENDER ──
+// ── 칭호 색/애니메이션 적용 헬퍼 ──
+// color 값이 "anim:XXX" 형태면 CSS 클래스로 처리,
+// "gradient(...)" 형태면 background-clip 방식,
+// 그 외는 단순 color 처리.
+const ANIM_PREFIX = 'anim:';
+const TITLE_ANIM_CLASSES = ['title-anim-shimmer','title-anim-rainbow','title-anim-neon',
+                             'title-anim-fire','title-anim-ice','title-anim-galaxy',
+                             'title-anim-gold','title-anim-glitch'];
+
+function applyTitleStyle(el, color, baseCss = '') {
+  // 기존 anim 클래스 제거
+  TITLE_ANIM_CLASSES.forEach(c => el.classList.remove(c));
+
+  if (!color) {
+    el.style.cssText = baseCss;
+    return;
+  }
+
+  if (color.startsWith(ANIM_PREFIX)) {
+    const animKey = color.slice(ANIM_PREFIX.length); // e.g. "rainbow"
+    const cls = 'title-anim-' + animKey;
+    el.style.cssText = baseCss + '; color: inherit;';
+    el.classList.add(cls);
+
+  } else if (color.toLowerCase().includes('gradient')) {
+    el.style.cssText = baseCss +
+      `; background:${color};` +
+      ' -webkit-background-clip:text;' +
+      ' -webkit-text-fill-color:transparent;' +
+      ' background-clip:text; color:transparent;';
+
+  } else {
+    el.style.cssText = baseCss + `; color:${color};`;
+  }
+}
+
+function titleColorInlineStyle(color) {
+  if (!color) return '';
+  if (color.startsWith(ANIM_PREFIX)) {
+    // inline style로 처리 못 함 → 별도 클래스 필요, 여기서는 class 문자열 반환용
+    return '__ANIM__' + color.slice(ANIM_PREFIX.length);
+  }
+  if (color.toLowerCase().includes('gradient')) {
+    return `background:${color};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;color:transparent;`;
+  }
+  return `color:${color};`;
+}
+
+function applyTitleStyleToHtmlEl(selector, color, baseCss = '') {
+  const el = document.querySelector(selector);
+  if (el) applyTitleStyle(el, color, baseCss);
+}
+
 function fmt(n) {
   n = Math.floor(n);
 
@@ -1638,27 +1779,16 @@ function renderRanking(data) {
 
     const isMe = u.username === username;
 
-    const titleStyle = u.title
-      ? (
-          u.title.color.includes('gradient')
-            ? `
-              background:${u.title.color};
-              -webkit-background-clip:text;
-              -webkit-text-fill-color:transparent;
-              background-clip:text;
-              color:transparent;
-            `
-            : `color:${u.title.color};`
-        )
-      : '';
-
-    const titleBadge = u.title
-      ? `
-        <span class="rank-title-badge" style="${titleStyle}">
-          ${u.title.emoji} ${u.title.name}
-        </span>
-      `
-      : '';
+    let titleBadge = '';
+    if (u.title) {
+      const rawStyle = titleColorInlineStyle(u.title.color);
+      if (rawStyle.startsWith('__ANIM__')) {
+        const animCls = 'title-anim-' + rawStyle.slice('__ANIM__'.length);
+        titleBadge = `<span class="rank-title-badge ${animCls}">${u.title.emoji} ${u.title.name}</span>`;
+      } else {
+        titleBadge = `<span class="rank-title-badge" style="${rawStyle}">${u.title.emoji} ${u.title.name}</span>`;
+      }
+    }
 
     return `
       <div class="rank-item ${isMe ? 'rank-me' : ''}" onclick="openOtherProfile('${u.username}')">
@@ -2268,7 +2398,7 @@ function renderProfileMainView() {
 
   if (equippedTitle) {
     badge.textContent = `${equippedTitle.emoji} ${equippedTitle.name}`;
-    badge.style.cssText = `font-size:12px; font-weight:700; color:${equippedTitle.color}; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;`;
+    applyTitleStyle(badge, equippedTitle.color, 'font-size:12px; font-weight:700; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;');
     uname.style.fontSize = profileData.username.length > 10 ? '18px' : '24px';
   } else {
     badge.textContent = '';
@@ -2330,7 +2460,7 @@ function renderProfileEditView() {
            title="${isLocked ? '조건 미달성' : t.description}">
         <div class="title-card-emoji">${t.emoji}</div>
         <div class="title-card-info">
-          <div class="title-card-name" style="color:${isLocked ? 'var(--muted)' : t.color}">${t.name}</div>
+          <div class="title-card-name ${!isLocked && t.color?.startsWith('anim:') ? 'title-anim-'+t.color.slice(5) : ''}" style="${isLocked ? 'color:var(--muted)' : (!t.color?.startsWith('anim:') ? titleColorInlineStyle(t.color) : '')}">${t.name}</div>
           <div class="title-card-desc">${isLocked ? fmt(t.condition_value) + '원 달성 시 해금' : t.description}</div>
         </div>
         ${isLocked ? '<span style="margin-left:auto;font-size:14px">🔒</span>' : ''}
@@ -2347,7 +2477,7 @@ function renderProfileEditView() {
            title="${t.description}">
         <div class="title-card-emoji">${t.emoji}</div>
         <div class="title-card-info">
-          <div class="title-card-name" style="color:${t.color}">${t.name}
+          <div class="title-card-name ${t.color?.startsWith('anim:') ? 'title-anim-'+t.color.slice(5) : ''}" style="${!t.color?.startsWith('anim:') ? titleColorInlineStyle(t.color) : ''}">${t.name}
             <span style="font-size:10px;opacity:0.6;margin-left:4px;">🛒</span>
           </div>
           <div class="title-card-desc">${t.description}</div>
@@ -2588,7 +2718,7 @@ async function openOtherProfile(uname) {
 
     if (equippedTitle) {
       badge.textContent = `${equippedTitle.emoji} ${equippedTitle.name}`;
-      badge.style.cssText = `font-size:12px; font-weight:700; color:${equippedTitle.color}; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;`;
+      applyTitleStyle(badge, equippedTitle.color, 'font-size:12px; font-weight:700; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;');
     } else {
       badge.textContent = '';
       badge.style.cssText = '';
@@ -2806,7 +2936,7 @@ function renderShopTitles(titles) {
       <div class="shop-title-card ${owned ? 'purchased' : ''}">
         <div class="shop-title-card-emoji">${t.emoji}</div>
         <div class="shop-title-card-info">
-          <div class="shop-title-card-name" style="color:${t.color}">${t.name}</div>
+          <div class="shop-title-card-name ${t.color?.startsWith('anim:') ? 'title-anim-'+t.color.slice(5) : ''}" style="${!t.color?.startsWith('anim:') ? titleColorInlineStyle(t.color) : ''}">${t.name}</div>
           <div class="shop-title-card-desc">${t.description || ''}</div>
         </div>
         <div class="shop-title-card-right">

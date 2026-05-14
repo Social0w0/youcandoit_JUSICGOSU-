@@ -125,8 +125,8 @@ TITLE_SEEDS = [
         'emoji': '🌱',
         'description': '주식고수에 첫 발을 내딛었습니다',
         'condition_type': 'asset',
-        'condition_value': 0,          # 가입 즉시 지급
-        'color': '#8888aa',
+        'condition_value': 0,
+        'color': '#8888aa',          # 기본 단색 유지
         'sort_order': 1,
     },
     {
@@ -136,7 +136,7 @@ TITLE_SEEDS = [
         'description': '총 자산 1억 원 돌파',
         'condition_type': 'asset',
         'condition_value': 100_000_000,
-        'color': '#f59e0b',
+        'color': 'anim:gold',        # ✨ 황금 shimmer
         'sort_order': 2,
     },
     {
@@ -146,7 +146,7 @@ TITLE_SEEDS = [
         'description': '총 자산 10억 원 돌파',
         'condition_type': 'asset',
         'condition_value': 1_000_000_000,
-        'color': '#06b6d4',
+        'color': 'anim:ice',         # ❄️ 청백 shimmer
         'sort_order': 3,
     },
     {
@@ -156,17 +156,28 @@ TITLE_SEEDS = [
         'description': '총 자산 1조 원 돌파',
         'condition_type': 'asset',
         'condition_value': 1_000_000_000_000,
-        'color': '#a855f7',
+        'color': 'anim:galaxy',      # 🌌 galaxy 그라데이션
         'sort_order': 4,
     },
 ]
 
 def seed_titles():
-    """앱 시작 시 Title 테이블에 초기 데이터가 없으면 삽입."""
-    if Title.query.count() == 0:
-        for data in TITLE_SEEDS:
+    """앱 시작 시 Title 테이블을 TITLE_SEEDS와 동기화.
+    - 없는 항목은 새로 삽입
+    - 이미 있는 항목은 color / name / emoji / description 을 항상 최신값으로 업데이트
+    """
+    existing = {t.id: t for t in Title.query.all()}
+    for data in TITLE_SEEDS:
+        if data['id'] not in existing:
             db.session.add(Title(**data))
-        db.session.commit()
+        else:
+            t = existing[data['id']]
+            t.color       = data['color']
+            t.name        = data['name']
+            t.emoji       = data['emoji']
+            t.description = data['description']
+            t.sort_order  = data['sort_order']
+    db.session.commit()
 
 
 # ── 상점 칭호 시스템 ──────────────────────────────────────────────
@@ -198,8 +209,161 @@ SHOP_TITLE_SEEDS = [
         'emoji': '🤑',
         'description': '오르는 주식을 알아보는 눈을 지니셨군요?',
         'price': 1000_0000,
-        'color': '#f59e0b',
+        'color': 'anim:gold',        # ✨ 황금 shimmer
         'sort_order': 1,
+    },
+    {
+        'id': 2,
+        'name': '열혈 트레이더',
+        'emoji': '🔥',
+        'description': '시장을 불태우는 자',
+        'price': 1500_0000,
+        'color': 'anim:fire',        # 🔥 불꽃 그라데이션
+        'sort_order': 2,
+    },
+    {
+        'id': 12,
+        'name': '존버의 화석',
+        'emoji': '🗿',
+        'description': '우리는, 결국 승리한다.',
+        'price': 3000_0000,
+        'color': "#746060",          # 단색 유지 (화석 느낌)
+        'sort_order': 2,
+    },
+    {
+        'id': 13,
+        'name': '상폐 컬렉터',
+        'emoji': '💀',
+        'description': '우리는, 결국 승리한다.',
+        'price': 4000_0000,
+        'color': 'anim:glitch',      # ⚡ 글리치 (해골 느낌)
+        'sort_order': 2,
+    },
+    {
+        'id': 14,
+        'name': '광대',
+        'emoji': '🤡',
+        'description': '아저씨는 왜 집이 없어요??',
+        'price': 5000_0000,
+        'color': 'anim:rainbow',     # 🌈 무지개 (광대 느낌)
+        'sort_order': 3,
+    },
+    {
+        'id': 3,
+        'name': '다크호스',
+        'emoji': '🐴',
+        'description': '아무도 예측 못할 다크호스',
+        'price': 1_5000_0000,
+        'color': 'linear-gradient(90deg, #38226d, #7b5ea7)',  # 정적 다크 퍼플
+        'sort_order': 3,
+    },
+    {
+        'id': 4,
+        'name': '월스트리트의 해커',
+        'emoji': '💻',
+        'description': '너도 할 수 있다! 주가조작!',
+        'price': 3_0000_0000,
+        'color': 'anim:neon',        # 💡 neon pulse (해커 느낌)
+        'sort_order': 4,
+    },
+    {
+        'id': 5,
+        'name': '시장의 설계자',
+        'emoji': '📐',
+        'description': '수학으로 부를 설계하는 자',
+        'price': 5_0000_0000,
+        'color': '#22c55e',          # 단색 유지
+        'sort_order': 5,
+    },
+    {
+        'id': 6,
+        'name': '개미들의 우상',
+        'emoji': '🐜',
+        'description': '오오.. 개미들의 왕이시여!',
+        'price': 100_0000_0000,
+        'color': "#a05757",          # 단색 유지
+        'sort_order': 5,
+    },
+    {
+        'id': 7,
+        'name': '하락장의 생존자',
+        'emoji': '😮‍💨',
+        'description': '그날은.. 정말 끔찍했어요!',
+        'price': 10_0000_0000,
+        'color': 'linear-gradient(90deg, #2e76a2, #06b6d4)',  # 정적 블루 그라데이션
+        'sort_order': 5,
+    },
+    {
+        'id': 8,
+        'name': '쫒겨난 CEO',
+        'emoji': '🧿',
+        'description': '하지만 주식은 올랐죠?',
+        'price': 10_0000_0000,
+        'color': 'anim:ice',         # ❄️ ice shimmer
+        'sort_order': 5,
+    },
+    {
+        'id': 9,
+        'name': '투자 고수',
+        'emoji': '🥽',
+        'description': '이 정도 경지라면, 두려울 게 없겠네요!',
+        'price': 1000_0000_0000,
+        'color': 'anim:shimmer',     # shimmer (ffe990 베이스는 CSS에서 커스텀 가능)
+        'sort_order': 7,
+    },
+    {
+        'id': 11,
+        'name': '물린 자의 품격',
+        'emoji': '😎',
+        'description': '나 지금... 떨고 있니?',
+        'price': 70_0000_0000,
+        'color': "#9fff31",          # 단색 유지
+        'sort_order': 6,
+    },
+    {
+        'id': 15,
+        'name': '보이지 않는 손',
+        'emoji': '✋',
+        'description': '주가를 주무르는 거대한 권력!',
+        'price': 1_0000_0000_0000,
+        'color': 'anim:shimmer',     # shimmer
+        'sort_order': 7,
+    },
+    {
+        'id': 16,
+        'name': '불사조',
+        'emoji': '🐦‍🔥',
+        'description': '뭣 4조가 불에 탄다고??!',
+        'price': 4_0000_0000_0000,
+        'color': 'anim:fire',        # 🔥 불꽃
+        'sort_order': 7,
+    },
+    {
+        'id': 17,
+        'name': '초신성',
+        'emoji': '🌠',
+        'description': '어느새 여기까지.',
+        'price': 100_0000_0000_0000,
+        'color': 'anim:galaxy',      # 🌌 galaxy
+        'sort_order': 7,
+    },
+    {
+        'id': 18,
+        'name': '글로볼',
+        'emoji': '🌏',
+        'description': '주식을 세계로 !!',
+        'price': 1000_0000_0000_0000,
+        'color': 'anim:rainbow',     # 🌈 rainbow
+        'sort_order': 7,
+    },
+    {
+        'id': 10,
+        'name': '주식의 신',
+        'emoji': '🎖️',
+        'description': '정점',
+        'price': 1_0000_0000_0000_0000,
+        'color': 'anim:galaxy',      # 🌌 최고 등급 - galaxy
+        'sort_order': 8,
     },
     {
         'id': 2,
@@ -228,7 +392,7 @@ SHOP_TITLE_SEEDS = [
         'color': "#bdbdbd",
         'sort_order': 2,
     },
-        {
+    {
         'id': 14,
         'name': '광대',
         'emoji': '🤡',
@@ -333,7 +497,7 @@ SHOP_TITLE_SEEDS = [
         'emoji': '🌠',
         'description': '어느새 여기까지.',
         'price': 100_0000_0000_0000,
-        'color': "#3b62ff",
+        'color':"anim:galaxy",
         'sort_order': 7,
     },
     {
@@ -359,14 +523,23 @@ SHOP_TITLE_SEEDS = [
 
 
 def seed_shop_titles():
-    existing_ids = {
-        t.id for t in ShopTitle.query.all()
-    }
-
+    """앱 시작 시 ShopTitle 테이블을 SHOP_TITLE_SEEDS와 동기화.
+    - 없는 항목은 새로 삽입
+    - 이미 있는 항목은 color / name / emoji / description / price 를 항상 최신값으로 업데이트
+    """
+    existing = {t.id: t for t in ShopTitle.query.all()}
     for data in SHOP_TITLE_SEEDS:
-        if data['id'] not in existing_ids:
+        if data['id'] not in existing:
             db.session.add(ShopTitle(**data))
-
+        else:
+            t = existing[data['id']]
+            t.color       = data['color']
+            t.name        = data['name']
+            t.emoji       = data['emoji']
+            t.description = data['description']
+            t.sort_order  = data['sort_order']
+            # price는 이미 구매한 유저가 있을 수 있어 기본 유지. 바꾸려면 아래 주석 해제:
+            # t.price = data['price']
     db.session.commit()
 
 
