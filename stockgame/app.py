@@ -1427,14 +1427,23 @@ def _gacha_pull_cost(total_asset: float) -> float:
 
 
 def _do_gacha_pulls(count: int):
-    """
-    count 회 뽑기를 수행하고 결과 리스트 반환.
-    각 원소: { gacha_title (GachaTitle obj), is_new (bool) }  or  { points: int, is_new: False }
-    """
     import random as _rand
     all_titles = GachaTitle.query.all()
-    pool  = [t for t in all_titles]
-    weights = [t.weight for t in pool]
+
+    # 꽝 더미 객체 (칭호 없이 포인트만 지급)
+    class DummyMiss:
+        id = -1
+        name = '꽝'
+        emoji = '💨'
+        color = '#555566'
+        rarity = 'miss'
+        weight = 0        # 여기서 안 씀
+        point_value = 1   # 꽝 지급 포인트
+
+    MISS_WEIGHT = 1000  # ← 이 숫자가 핵심. 높을수록 꽝 비중 증가
+
+    pool    = [DummyMiss()] + list(all_titles)
+    weights = [MISS_WEIGHT] + [t.weight for t in all_titles]
     return _rand.choices(pool, weights=weights, k=count)
 
 
@@ -1536,27 +1545,20 @@ def gacha_pull():
     total_pts_gained = 0
 
     for title in drawn:
-        is_new = title.id not in owned_ids
-        pts = 0
-        if is_new:
-            owned_ids.add(title.id)
-            db.session.add(GachaTitleOwned(user_id=user_id, gacha_title_id=title.id))
-        else:
-            # 이미 보유 → 포인트 지급
+        if title.id == -1:   # 꽝
             pts = title.point_value
             gp.points += pts
             total_pts_gained += pts
-
-        results.append({
-            "id": title.id,
-            "name": title.name,
-            "emoji": title.emoji,
-            "color": title.color,
-            "rarity": title.rarity,
-            "is_new": is_new,
+            results.append({
+            "id": -1,
+            "name": "꽝",
+            "emoji": "💨",
+            "color": "#555566",
+            "rarity": "miss",
+            "is_new": False,
             "points_gained": pts,
-        })
-
+            })
+            continue
     db.session.commit()
 
     return jsonify({
