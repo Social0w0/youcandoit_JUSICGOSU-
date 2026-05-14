@@ -2647,11 +2647,13 @@ function updateTopbarTitle() {
   if (!t && profileData.equipped_title_id) {
     t = (profileData.titles || []).find(x => x.id === profileData.equipped_title_id);
   }
-
   if (!t) { badge.style.display = 'none'; return; }
-  badge.textContent = `${t.emoji} ${t.name}`;
-  badge.style.cssText = `display:inline; font-size:11px; font-weight:700; color:${t.color};
+  badge.innerHTML = `<span class="badge-emoji">${t.emoji}</span><span id="badge-title-text">${t.name}</span>`;
+  badge.style.cssText = `display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700;
     background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px; margin-right:4px;`;
+
+  const titleTextEl = badge.querySelector('#badge-title-text');
+  applyTitleStyle(titleTextEl, t.color, 'font-weight:700;');
 }
 
 function handleNewTitles(newTitles) {
@@ -2663,8 +2665,9 @@ function handleNewTitles(newTitles) {
       el.innerHTML = `
         <div class="unlock-emoji">${t.emoji}</div>
         <div class="unlock-label">칭호 획득!</div>
-        <div class="unlock-name" style="color:${t.color}">${t.name}</div>`;
+        <div class="unlock-name">${t.name}</div>`;
       document.body.appendChild(el);
+      applyTitleStyle(el.querySelector('.unlock-name'), t.color, '');
       setTimeout(() => { el.style.animation = 'toastOut 0.3s forwards'; setTimeout(() => el.remove(), 300); }, 3500);
     }, i * 600);
   });
