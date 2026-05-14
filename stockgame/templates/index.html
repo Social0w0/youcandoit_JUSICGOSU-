@@ -1785,9 +1785,9 @@ function renderRanking(data) {
       const rawStyle = titleColorInlineStyle(u.title.color);
       if (rawStyle.startsWith('__ANIM__')) {
         const animCls = 'title-anim-' + rawStyle.slice('__ANIM__'.length);
-        titleBadge = `<span class="rank-title-badge ${animCls}">${u.title.emoji} ${u.title.name}</span>`;
+        titleBadge = `<span class="rank-title-badge"><span class="rank-title-emoji">${u.title.emoji}</span><span class="${animCls}">${u.title.name}</span></span>`;
       } else {
-        titleBadge = `<span class="rank-title-badge" style="${rawStyle}">${u.title.emoji} ${u.title.name}</span>`;
+        titleBadge = `<span class="rank-title-badge"><span class="rank-title-emoji">${u.title.emoji}</span><span style="${rawStyle}">${u.title.name}</span></span>`;
       }
     }
 
@@ -2725,10 +2725,17 @@ async function openOtherProfile(uname) {
     const unameEl = document.getElementById('other-profile-username');
 
     if (equippedTitle) {
-      badge.textContent = `${equippedTitle.emoji} ${equippedTitle.name}`;
-      applyTitleStyle(badge, equippedTitle.color, 'font-size:12px; font-weight:700; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px;');
+      badge.innerHTML = '';
+      badge.style.cssText = 'font-size:12px; font-weight:700; background:rgba(255,255,255,0.12); padding:3px 8px; border-radius:5px; display:inline-flex; align-items:center; gap:3px;';
+      const emojiSpan = document.createElement('span');
+      emojiSpan.textContent = equippedTitle.emoji;
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = equippedTitle.name;
+      applyTitleStyle(nameSpan, equippedTitle.color, '');
+      badge.appendChild(emojiSpan);
+      badge.appendChild(nameSpan);
     } else {
-      badge.textContent = '';
+      badge.innerHTML = '';
       badge.style.cssText = '';
     }
     unameEl.textContent = data.username;
