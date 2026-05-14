@@ -156,7 +156,7 @@ TITLE_SEEDS = [
         'description': '총 자산 1조 원 돌파',
         'condition_type': 'asset',
         'condition_value': 1_000_000_000_000,
-        'color': 'anim:galaxy',      # 🌌 galaxy 그라데이션
+        'color': "#9E28FF",      # 🌌 galaxy 그라데이션
         'sort_order': 4,
     },
 ]
@@ -479,7 +479,7 @@ SHOP_TITLE_SEEDS = [
         'emoji': '✋',
         'description': '주가를 주무르는 거대한 권력!',
         'price': 1_0000_0000_0000,
-        'color': "#fff8bb",
+        'color': "anim:glitch",
         'sort_order': 7,
     },
     {
