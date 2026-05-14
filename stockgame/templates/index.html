@@ -3471,10 +3471,22 @@ async function equipGachaTitle(titleId) {
     if (gachaData) gachaData.equipped_gacha_title_id = newId;
     if (profileData) profileData.equipped_gacha_title_id = newId;
 
-    // 다른 칭호 슬롯 해제 (뽑기 칭호 장착 시)
-    if (newId && profileData) {
-      profileData.equipped_shop_title_id = null;
-      profileData.equipped_title_id = null;
+    // 뽑기 칭호 장착 시 다른 슬롯도 서버에서 해제
+    if (newId) {
+      if (profileData?.equipped_shop_title_id) {
+        await fetch('/shop/equip', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ user_id: userId, shop_title_id: null })
+        });
+        profileData.equipped_shop_title_id = null;
+      }
+      if (profileData?.equipped_title_id) {
+        await fetch(`/profile/${userId}/equip`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ title_id: null })
+        });
+        profileData.equipped_title_id = null;
+      }
     }
 
     renderGachaOwnedGrid();
@@ -3508,24 +3520,7 @@ async function buyGachaWithPoint(titleId) {
   }
 }
 
-function updateTopbarTitle() {
-  if (!profileData) return;
-  // equipped_gacha_title_id 우선
-  let title = null;
-  if (profileData.equipped_gacha_title_id && gachaData) {
-    title = gachaData.gacha_titles?.find(t => t.id === profileData.equipped_gacha_title_id);
-  }
-  // 없으면 기존 shop/achievement 로직 유지 (기존 코드가 이미 처리)
-  if (!title) return;
 
-  const badge = document.getElementById('topbar-title-badge');
-  if (badge) {
-    badge.style.display = 'inline';
-    badge.innerHTML = `<span>${title.emoji}</span><span id="topbar-gtitle-text">${title.name}</span>`;
-    const nameEl = document.getElementById('topbar-gtitle-text');
-    if (nameEl) applyTitleStyle(nameEl, title.color, 'font-weight:700;font-size:11px;');
-  }
-}
 
 async function doRename() {
   if (!userId) return;
