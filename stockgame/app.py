@@ -1457,7 +1457,7 @@ def _do_gacha_pulls(count: int):
         weight = 0        # 여기서 안 씀
         point_value = 1   # 꽝 지급 포인트
 
-    MISS_WEIGHT = 1600  # ← 이 숫자가 핵심. 높을수록 꽝 비중 증가
+    MISS_WEIGHT = 8000   # ← 이 숫자가 핵심. 높을수록 꽝 비중 증가
 
     pool    = [DummyMiss()] + list(all_titles)
     weights = [MISS_WEIGHT] + [t.weight for t in all_titles]
