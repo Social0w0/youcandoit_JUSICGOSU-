@@ -1156,6 +1156,16 @@
   #gacha-shop-grid::-webkit-scrollbar-thumb { background: rgba(124,110,255,0.3); border-radius: 2px; }
   #gacha-owned-grid::-webkit-scrollbar-thumb:hover,
   #gacha-shop-grid::-webkit-scrollbar-thumb:hover { background: rgba(124,110,255,0.55); }
+
+  /* 뽑기 칭호 그리드 공통 — 스크롤 고정 높이 */
+  #gacha-owned-grid,
+  #gacha-shop-grid {
+    max-height: 340px !important;
+    overflow-y: auto !important;
+    padding-right: 4px;
+    /* grid 내부 아이템이 max-height를 무시하지 않도록 align-content 지정 */
+    align-content: start;
+  }
 </style>
 </head>
 <body>
