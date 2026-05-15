@@ -2572,6 +2572,10 @@ async function openProfileModal() {
   pendingShopTitleId = undefined;
   pendingGachaTitleId = undefined;
   pendingBg = null;
+  
+  await loadShopBackgrounds();
+  renderProfileEditView();
+
   try {
     const res = await fetch(API + `/profile/${userId}`);
     profileData = await res.json();
