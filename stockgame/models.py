@@ -771,6 +771,7 @@ def seed_gacha_titles():
             db.session.add(GachaTitle(**data))
         else:
             t = existing[data['id']]
+            db.session.expire(t)        # ← 추가: 캐시 초기화
             for k, v in data.items():
                 if k != 'id':
                     setattr(t, k, v)
