@@ -2554,8 +2554,9 @@ function renderProfileMainView() {
   if (profileData.equipped_shop_title_id) {
     equippedTitle = (profileData.shop_titles || []).find(t => t.id === profileData.equipped_shop_title_id);
   }
-  if (!equippedTitle && profileData.equipped_gacha_title_id && gachaData) {
-    equippedTitle = gachaData.gacha_titles?.find(t => t.id === profileData.equipped_gacha_title_id);
+  if (!equippedTitle && profileData.equipped_gacha_title_id) {
+    equippedTitle = (profileData.gacha_titles || []).find(t => t.id === profileData.equipped_gacha_title_id)
+      || gachaData?.gacha_titles?.find(t => t.id === profileData.equipped_gacha_title_id);
   }
   if (!equippedTitle && profileData.equipped_title_id) {
     equippedTitle = (profileData.titles || []).find(t => t.id === profileData.equipped_title_id);
@@ -2839,6 +2840,12 @@ async function saveProfile() {
       }
     }
 
+    // ── 5) profileData 서버에서 전체 갱신 (gacha_titles 등 최신 반영) ──
+    try {
+      const freshRes = await fetch(API + `/profile/${userId}`);
+      if (freshRes.ok) profileData = await freshRes.json();
+    } catch(_) {}
+
     updateTopbarTitle();
     closeProfileEdit();
     renderProfileMainView();
@@ -2946,10 +2953,13 @@ async function openOtherProfile(uname) {
       headerBg.style.cssText = `padding:28px 28px 20px; position:relative; border-radius:16px 16px 0 0; ${BG_HEADER_STYLES[bgKey] || BG_HEADER_STYLES.default}`;
     }
 
-    // 상점 칭호 우선, 없으면 업적 칭호 확인
+    // 상점 칭호 우선, 뽑기 칭호, 없으면 업적 칭호 확인
     let equippedTitle = null;
     if (data.equipped_shop_title_id) {
       equippedTitle = (data.shop_titles || []).find(t => t.id === data.equipped_shop_title_id) || null;
+    }
+    if (!equippedTitle && data.equipped_gacha_title_id) {
+      equippedTitle = (data.gacha_titles || []).find(t => t.id === data.equipped_gacha_title_id) || null;
     }
     if (!equippedTitle && data.equipped_title_id) {
       equippedTitle = (data.titles || []).find(t => t.id === data.equipped_title_id) || null;
