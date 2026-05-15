@@ -2660,9 +2660,9 @@ function renderProfileEditView() {
   });
 
   // 뽑기 칭호 카드 (보유한 것만)
-  const equippedGachaTitleId = profileData.equipped_gacha_title_id;
+  const equippedGachaTitleId = pendingGachaTitleId !== undefined ? pendingGachaTitleId : profileData.equipped_gacha_title_id;
   const gachaCards = (profileData.gacha_titles || []).filter(t => t.owned).map(t => {
-    const isEquipped = t.id === equippedGachaTitleId;
+    const isEquipped = t.id === equippedGachaTitleId && !equippedShopTitleId && !equippedTitleId;
     return `
       <div class="title-card ${isEquipped ? 'equipped' : ''}"
            onclick="selectTitle(${t.id}, 'gacha')"
