@@ -1059,14 +1059,19 @@
   .gacha-result-overlay {
     position:fixed; inset:0; z-index:9000;
     background:rgba(0,0,0,0.88); display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:16px;
+    align-items:center; justify-content:flex-start; gap:16px;
     animation: fadeInOverlay .2s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 24px 16px 40px;
+    box-sizing: border-box;
   }
   @keyframes fadeInOverlay { from{opacity:0} to{opacity:1} }
-  .gacha-result-title { font-size:22px; font-weight:900; color:var(--text); margin-bottom:4px; }
+  .gacha-result-title { font-size:22px; font-weight:900; color:var(--text); margin-bottom:4px; flex-shrink:0; }
   .gacha-result-grid {
-    display:grid; gap:10px; max-width:680px; width:90%;
+    display:grid; gap:10px; max-width:680px; width:100%;
     grid-template-columns: repeat(auto-fill, minmax(120px,1fr));
+    flex-shrink: 0;
   }
   .gacha-card {
     background:var(--bg3); border:2px solid var(--border);
@@ -1088,13 +1093,27 @@
   .badge-new  { background:rgba(250,204,21,0.15); color:#facc15; border:1px solid rgba(250,204,21,0.4); }
   .badge-dup  { background:rgba(100,116,139,0.15); color:var(--muted); border:1px solid var(--border); }
   .badge-pts  { color:#a78bfa; font-size:10px; margin-top:3px; display:block; }
-  .gacha-result-summary { font-size:13px; color:var(--muted); text-align:center; }
+  .gacha-result-summary { font-size:13px; color:var(--muted); text-align:center; flex-shrink:0; }
   .gacha-result-close {
-    padding:10px 40px; background:var(--accent); border:none; border-radius:8px;
-    color:#fff; font-size:14px; font-weight:700; cursor:pointer; margin-top:4px;
-    transition: background .15s;
+    padding:14px 48px; background:var(--accent); border:none; border-radius:8px;
+    color:#fff; font-size:16px; font-weight:700; cursor:pointer; margin-top:8px;
+    transition: background .15s; flex-shrink:0;
+    /* 모바일에서 터치 영역 확보 */
+    min-height: 50px; min-width: 160px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   .gacha-result-close:hover { background:var(--accent2); }
+  /* 모바일 상단 닫기 버튼 */
+  .gacha-result-close-top {
+    position: sticky; top: 0; align-self: flex-end;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; border-radius: 50%; width: 36px; height: 36px;
+    font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; z-index: 1;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 
   /* 뽑기 칭호 카드 */
   .gacha-title-card {
@@ -3531,10 +3550,16 @@ function showGachaResultOverlay(results, totalPts, ptsGained) {
     : `총 포인트: ${totalPts.toLocaleString()}pt`;
 
   overlay.innerHTML = `
+    <button class="gacha-result-close-top" onclick="closeGachaOverlay()" aria-label="닫기">✕</button>
     <div class="gacha-result-title">${title}</div>
     <div class="gacha-result-grid">${cards}</div>
     <div class="gacha-result-summary">${summary}</div>
     <button class="gacha-result-close" onclick="closeGachaOverlay()">확인</button>`;
+
+  // 오버레이 배경 탭으로도 닫기 (카드 영역 탭은 제외)
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeGachaOverlay();
+  });
 
   document.body.appendChild(overlay);
 }
