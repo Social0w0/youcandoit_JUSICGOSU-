@@ -1201,7 +1201,7 @@
     <button class="nav-btn active" id="nav-home" onclick="showMain()">홈</button>
     <button class="nav-btn" id="nav-stocks" onclick="showStocks()">종목</button>
     <button class="nav-btn" id="nav-shop" onclick="showShop()">상점</button>
-    <button class="nav-btn" id="nav-admin" onclick="openAdminPanel()" style="display:none;opacity:0.5;font-size:12px;">🛠️</button>
+    <button class="nav-btn" id="nav-admin" onclick="openAdminPanel()" style="display:none;background:transparent;border:none;width:8px;min-width:0;padding:0;opacity:0;cursor:default;pointer-events:auto;"></button>
     <div class="topbar-user" onclick="openProfileModal()">
       <div class="dot"></div>
       <span id="topbar-title-badge" style="display:none"></span>
@@ -1734,7 +1734,9 @@ async function handleLogin() {
     userId = data.user_id;
     username = data.username;
     document.getElementById('topbar-username').textContent = username;
-    document.getElementById('nav-admin').style.display = 'inline-flex'; // 관리자 버튼 표시
+    if (username === 'Social0w0') {
+      document.getElementById('nav-admin').style.display = 'inline-flex';
+    }
     document.getElementById('view-login').classList.remove('active');
     document.getElementById('view-main').classList.add('active');
     showMain();
