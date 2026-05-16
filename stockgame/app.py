@@ -401,7 +401,7 @@ def buy():
     # ── 점진적 매수 쿨다운 체크 (100억~1조, 최대 10분) ──
     required_cooldown = calc_buy_cooldown(cost)
     if required_cooldown > 0:
-        last_buy_info = buy_cooldowns.get(user_id)
+        last_buy_info = buy_cooldowns.get((user_id, stock_id))
         if last_buy_info is not None:
             last_buy_time, last_cooldown = last_buy_info
             elapsed = (datetime.utcnow() - last_buy_time).total_seconds()
@@ -452,7 +452,7 @@ def buy():
 
     # ── 점진적 쿨다운 타임스탬프 기록 (금액 기반 쿨다운 시간과 함께 저장) ──
     if required_cooldown > 0:
-        buy_cooldowns[user_id] = (datetime.utcnow(), required_cooldown)
+        buy_cooldowns[(user_id, stock_id)] = (datetime.utcnow(), required_cooldown)
 
     holding = db.session.execute(
         db.select(Holding).where(Holding.user_id == user_id, Holding.stock_id == stock_id)
