@@ -6,7 +6,8 @@ from models import db, User, Stock, Holding, Event, PriceHistory, Earnings, Tran
                    ShopTitle, ShopPurchase, seed_shop_titles, \
                    ShopBackground, ShopBgPurchase, seed_shop_backgrounds, \
                    GachaTitle, GachaTitleOwned, GachaPoint, \
-                   seed_gacha_titles, get_or_create_gacha_point
+                   seed_gacha_titles, get_or_create_gacha_point, \
+                   CustomTitle, CustomTitleOwned
 import random
 from datetime import datetime
 
@@ -150,6 +151,17 @@ with app.app_context():
     except Exception as e:
         print(f"[MIGRATION] equipped_gacha_title_id 컬럼 추가 건너뜀: {e}")
 
+    # ── 커스텀 칭호 시스템 마이그레이션: equipped_custom_title_id 컬럼 ──
+    try:
+        profile_cols3 = [c['name'] for c in inspector.get_columns('user_profile')]
+        if 'equipped_custom_title_id' not in profile_cols3:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE user_profile ADD COLUMN equipped_custom_title_id INTEGER DEFAULT NULL'))
+                conn.commit()
+            print("[MIGRATION] equipped_custom_title_id 컬럼 추가 완료")
+    except Exception as e:
+        print(f"[MIGRATION] equipped_custom_title_id 컬럼 추가 건너뜀: {e}")
+
     # password 컬럼 마이그레이션
     user_cols = [c['name'] for c in inspector.get_columns('user')]
     if 'password' not in user_cols:
@@ -244,6 +256,126 @@ def reset():
     db.session.commit()
 
     return "게임 상태 초기화 완료"
+
+
+# ─────────────────────────────────────────
+# 관리자 - 커스텀 칭호 시스템
+# ─────────────────────────────────────────
+
+@app.route("/admin/custom_title/create", methods=["POST"])
+def admin_create_custom_title():
+    """커스텀 칭호 생성 (관리자 전용)"""
+    data = request.json or {}
+    name        = (data.get("name") or "").strip()
+    emoji       = (data.get("emoji") or "🏷️").strip()
+    description = (data.get("description") or "").strip()
+    color       = (data.get("color") or "#8888aa").strip()
+    sort_order  = data.get("sort_order", 0)
+
+    if not name:
+        return jsonify({"error": "칭호 이름을 입력해주세요"}), 400
+
+    title = CustomTitle(name=name, emoji=emoji, description=description,
+                        color=color, sort_order=sort_order)
+    db.session.add(title)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"커스텀 칭호 '{emoji} {name}' 생성 완료",
+        "id": title.id,
+        "name": title.name,
+        "emoji": title.emoji,
+        "color": title.color,
+    })
+
+
+@app.route("/admin/custom_title/grant", methods=["POST"])
+def admin_grant_custom_title():
+    """유저에게 커스텀 칭호 지급 (관리자 전용)"""
+    data            = request.json or {}
+    username        = (data.get("username") or "").strip()
+    custom_title_id = data.get("custom_title_id")
+    note            = (data.get("note") or "").strip()
+
+    if not username or not custom_title_id:
+        return jsonify({"error": "username과 custom_title_id가 필요합니다"}), 400
+
+    user = db.session.execute(
+        db.select(User).where(User.username == username)
+    ).scalar_one_or_none()
+    if not user:
+        return jsonify({"error": f"'{username}' 유저를 찾을 수 없습니다"}), 404
+
+    title = db.session.get(CustomTitle, custom_title_id)
+    if not title:
+        return jsonify({"error": "존재하지 않는 커스텀 칭호입니다"}), 404
+
+    already = db.session.execute(
+        db.select(CustomTitleOwned).where(
+            CustomTitleOwned.user_id == user.id,
+            CustomTitleOwned.custom_title_id == custom_title_id
+        )
+    ).scalar_one_or_none()
+    if already:
+        return jsonify({"error": f"'{username}'은 이미 해당 칭호를 보유하고 있습니다"}), 400
+
+    owned = CustomTitleOwned(user_id=user.id, custom_title_id=custom_title_id, note=note)
+    db.session.add(owned)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"'{username}'에게 '{title.emoji} {title.name}' 지급 완료",
+        "username": user.username,
+        "title": {"id": title.id, "name": title.name, "emoji": title.emoji},
+    })
+
+
+@app.route("/admin/custom_title/list")
+def admin_list_custom_titles():
+    """커스텀 칭호 목록 조회 (관리자 전용)"""
+    titles = CustomTitle.query.order_by(CustomTitle.sort_order, CustomTitle.id).all()
+    return jsonify([{
+        "id": t.id,
+        "name": t.name,
+        "emoji": t.emoji,
+        "description": t.description,
+        "color": t.color,
+        "sort_order": t.sort_order,
+        "created_at": t.created_at.strftime("%Y-%m-%d %H:%M"),
+    } for t in titles])
+
+
+@app.route("/custom_title/equip", methods=["POST"])
+def equip_custom_title():
+    """커스텀 칭호 장착/해제 (유저 본인)"""
+    data            = request.json or {}
+    user_id         = data.get("user_id")
+    custom_title_id = data.get("custom_title_id")   # None이면 해제
+
+    if not user_id:
+        return jsonify({"error": "잘못된 요청입니다"}), 400
+
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        return jsonify({"error": "프로필을 찾을 수 없습니다"}), 404
+
+    if custom_title_id:
+        owned = db.session.execute(
+            db.select(CustomTitleOwned).where(
+                CustomTitleOwned.user_id == user_id,
+                CustomTitleOwned.custom_title_id == custom_title_id
+            )
+        ).scalar_one_or_none()
+        if not owned:
+            return jsonify({"error": "보유하지 않은 칭호입니다"}), 403
+
+    profile.equipped_custom_title_id = custom_title_id
+    db.session.commit()
+
+    return jsonify({
+        "message": "커스텀 칭호 장착 완료" if custom_title_id else "커스텀 칭호 해제 완료",
+        "equipped_custom_title_id": profile.equipped_custom_title_id,
+    })
 
 
 @app.route("/admin/delete_user", methods=["POST"])
@@ -657,6 +789,11 @@ def ranking():
         profile = UserProfile.query.filter_by(user_id=user_id).first()
         if not profile:
             return None
+        # 커스텀(관리자 지급) 칭호 최우선
+        custom_title_id = getattr(profile, 'equipped_custom_title_id', None)
+        if custom_title_id:
+            t = db.session.get(CustomTitle, custom_title_id)
+            return {"name": t.name, "emoji": t.emoji, "color": t.color} if t else None
         # 상점 칭호 우선, 없으면 뽑기 칭호, 없으면 업적 칭호
         shop_title_id = getattr(profile, 'equipped_shop_title_id', None)
         if shop_title_id:
@@ -729,11 +866,20 @@ def get_profile(user_id):
     )
     all_gacha_titles = GachaTitle.query.order_by(GachaTitle.sort_order).all()
 
+    # 커스텀(관리자 지급) 칭호 보유 목록
+    owned_custom_ids = set(
+        r.custom_title_id for r in db.session.execute(
+            db.select(CustomTitleOwned).where(CustomTitleOwned.user_id == user_id)
+        ).scalars().all()
+    )
+    all_custom_titles = CustomTitle.query.order_by(CustomTitle.sort_order).all()
+
     return jsonify({
         "username": user.username,
         "equipped_title_id": profile.equipped_title_id,
         "equipped_shop_title_id": getattr(profile, 'equipped_shop_title_id', None),
         "equipped_gacha_title_id": getattr(profile, 'equipped_gacha_title_id', None),
+        "equipped_custom_title_id": getattr(profile, 'equipped_custom_title_id', None),
         "equipped_bg": profile.equipped_bg or "default",
         "total_asset": round(total_asset, 2),
         "peak_asset": round(profile.peak_asset or 0, 2),
@@ -768,6 +914,14 @@ def get_profile(user_id):
             "rarity": t.rarity,
             "owned": t.id in owned_gacha_ids,
         } for t in all_gacha_titles],
+        "custom_titles": [{
+            "id": t.id,
+            "name": t.name,
+            "emoji": t.emoji,
+            "description": t.description,
+            "color": t.color,
+            "owned": t.id in owned_custom_ids,
+        } for t in all_custom_titles],
     })
 
 # -------------------------

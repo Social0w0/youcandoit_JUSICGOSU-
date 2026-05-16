@@ -116,6 +116,30 @@ class UserProfile(db.Model):
     custom_bg_2             = db.Column(db.String(500), nullable=True)
     custom_bg_3             = db.Column(db.String(500), nullable=True)
     custom_bg_slot_count    = db.Column(db.Integer, default=0)  # 구매한 슬롯 수 (0~3)
+    # 관리자 지급 커스텀 칭호
+    equipped_custom_title_id = db.Column(db.Integer, db.ForeignKey('custom_title.id'), nullable=True)
+
+
+# ── 관리자 지급 커스텀 칭호 ──────────────────────────────────────────
+
+class CustomTitle(db.Model):
+    """관리자가 직접 생성·지급하는 커스텀 칭호 정의 테이블"""
+    id          = db.Column(db.Integer, primary_key=True)
+    name        = db.Column(db.String(30), nullable=False)    # "베타테스터"
+    emoji       = db.Column(db.String(10), nullable=False)    # "🧪"
+    description = db.Column(db.String(100))
+    color       = db.Column(db.String(100), nullable=False)   # 기존 color 규칙 동일
+    sort_order  = db.Column(db.Integer, default=0)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class CustomTitleOwned(db.Model):
+    """유저-커스텀칭호 소유 기록 (M:N)"""
+    id              = db.Column(db.Integer, primary_key=True)
+    user_id         = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    custom_title_id = db.Column(db.Integer, db.ForeignKey('custom_title.id'), nullable=False)
+    granted_at      = db.Column(db.DateTime, default=datetime.utcnow)
+    note            = db.Column(db.String(100))  # 지급 사유 메모 (선택)
 
 
 # ── 칭호 초기 데이터 (app.py의 create_tables() 안에서 호출) ─────────
