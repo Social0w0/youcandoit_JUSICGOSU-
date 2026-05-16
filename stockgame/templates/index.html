@@ -2358,12 +2358,17 @@ async function executeTrade(action) {
       handleNewTitles(data.new_titles);
       await fetchPortfolio();
       updateDetailPrices();
-    } else {
-      showToast(data.error || '오류 발생', 'error');
-      // 서버로부터 쿨다운 남은 시간이 오면 UI에 카운트다운 표시
+      // 매수 성공했지만 이번 매수로 쿨다운이 시작된 경우 즉시 UI에 반영
       if (data.cooldown_remaining && action === 'buy') {
         startBuyCooldown(data.cooldown_remaining, currentStock.id);
-        return; // 쿨다운 중이므로 버튼 복원은 카운트다운 종료 후에
+        return; // 버튼 복원은 카운트다운 종료 후에
+      }
+    } else {
+      showToast(data.error || '오류 발생', 'error');
+      // 이미 쿨다운 중인 경우 (429 응답)
+      if (data.cooldown_remaining && action === 'buy') {
+        startBuyCooldown(data.cooldown_remaining, currentStock.id);
+        return; // 버튼 복원은 카운트다운 종료 후에
       }
     }
   } catch(e) {
@@ -2376,66 +2381,67 @@ async function executeTrade(action) {
 }
 
 function startBuyCooldown(seconds, stockId) {
-  // 종목별 쿨다운 종료 시각 저장
-  buyCooldownEndByStock[stockId] = Date.now() + seconds * 1000;
-
-  // 타이머는 하나만 유지 (현재 보고 있는 종목 UI를 갱신)
-  if (buyCooldownTimer) clearInterval(buyCooldownTimer);
-
-  function tick() {
-    const buyBtn = document.querySelector('.btn-buy');
-    const sellBtn = document.querySelector('.btn-sell');
-
-    // 현재 보고 있는 종목의 쿨다운 확인
-    const endTime = currentStock ? buyCooldownEndByStock[currentStock.id] : null;
-    const remaining = endTime ? (endTime - Date.now()) / 1000 : 0;
-
-    if (!endTime || remaining <= 0) {
-      // 현재 종목 쿨다운 없음 → 버튼 정상화
-      if (endTime) delete buyCooldownEndByStock[currentStock.id];
-
-      // 아직 다른 종목에 쿨다운이 남아있으면 타이머 유지, 없으면 중지
-      if (Object.keys(buyCooldownEndByStock).length === 0) {
-        clearInterval(buyCooldownTimer);
-        buyCooldownTimer = null;
-      }
-      if (buyBtn) { buyBtn.disabled = false; buyBtn.textContent = '▲ 매수'; }
-      if (sellBtn) sellBtn.disabled = false;
-      return;
-    }
-
-    if (buyBtn) {
-      buyBtn.disabled = true;
-      buyBtn.textContent = remaining >= 60
-        ? `⏱️ ${Math.floor(remaining / 60)}분 ${Math.floor(remaining % 60)}초`
-        : `⏱️ ${remaining.toFixed(1)}초`;
-    }
-    if (sellBtn) sellBtn.disabled = false;
+  // seconds > 0 일 때만 기록을 저장 (0으로 호출하면 기존 기록 덮어쓰기 방지)
+  if (seconds > 0) {
+    buyCooldownEndByStock[stockId] = Date.now() + seconds * 1000;
   }
 
-  tick();
-  buyCooldownTimer = setInterval(tick, 100);
+  // 전역 tick 타이머가 없으면 시작 (하나만 유지)
+  if (!buyCooldownTimer) {
+    buyCooldownTimer = setInterval(tickAllCooldowns, 100);
+  }
+
+  // 즉시 한 번 UI 반영
+  tickAllCooldowns();
+}
+
+// 모든 쿨다운 기록을 정리하고, 현재 보고 있는 종목 버튼만 업데이트
+function tickAllCooldowns() {
+  const now = Date.now();
+
+  // 만료된 종목 기록 정리
+  for (const sid of Object.keys(buyCooldownEndByStock)) {
+    if (buyCooldownEndByStock[sid] <= now) {
+      delete buyCooldownEndByStock[sid];
+    }
+  }
+
+  // 남은 쿨다운이 하나도 없으면 타이머 중지
+  if (Object.keys(buyCooldownEndByStock).length === 0) {
+    clearInterval(buyCooldownTimer);
+    buyCooldownTimer = null;
+  }
+
+  // 현재 보고 있는 종목의 버튼만 업데이트
+  const buyBtn = document.querySelector('.btn-buy');
+  const sellBtn = document.querySelector('.btn-sell');
+  if (!buyBtn || !currentStock) return;
+
+  const endTime = buyCooldownEndByStock[currentStock.id];
+  if (endTime && endTime > now) {
+    // 현재 종목 쿨다운 중
+    const remaining = (endTime - now) / 1000;
+    buyBtn.disabled = true;
+    buyBtn.textContent = remaining >= 60
+      ? `⏱️ ${Math.floor(remaining / 60)}분 ${Math.floor(remaining % 60)}초`
+      : `⏱️ ${remaining.toFixed(1)}초`;
+    if (sellBtn) sellBtn.disabled = false;
+  } else {
+    // 현재 종목 쿨다운 없음 → 버튼 정상화
+    buyBtn.disabled = false;
+    buyBtn.textContent = '▲ 매수';
+    if (sellBtn) sellBtn.disabled = false;
+  }
 }
 
 // 종목 상세창 열릴 때 해당 종목의 쿨다운 상태를 버튼에 즉시 반영
 function applyStockCooldownUI() {
-  const buyBtn = document.querySelector('.btn-buy');
-  if (!buyBtn || !currentStock) return;
-  const endTime = buyCooldownEndByStock[currentStock.id];
-  if (endTime && (endTime - Date.now()) > 0) {
-    // 이 종목은 쿨다운 중 → 타이머가 없으면 재시작
-    if (!buyCooldownTimer) {
-      buyCooldownTimer = setInterval(() => startBuyCooldown(0, currentStock.id), 100);
-      // 즉시 tick 한 번 실행
-      const remaining = (endTime - Date.now()) / 1000;
-      buyBtn.disabled = true;
-      buyBtn.textContent = remaining >= 60
-        ? `⏱️ ${Math.floor(remaining / 60)}분 ${Math.floor(remaining % 60)}초`
-        : `⏱️ ${remaining.toFixed(1)}초`;
-    }
-  } else {
-    buyBtn.disabled = false;
-    buyBtn.textContent = '▲ 매수';
+  // tickAllCooldowns가 현재 종목 기준으로 버튼을 올바르게 업데이트함
+  tickAllCooldowns();
+
+  // 이 종목에 쿨다운이 남아있는데 타이머가 없으면 재시작
+  if (currentStock && buyCooldownEndByStock[currentStock.id] && !buyCooldownTimer) {
+    buyCooldownTimer = setInterval(tickAllCooldowns, 100);
   }
 }
 
