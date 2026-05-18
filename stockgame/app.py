@@ -1451,7 +1451,7 @@ def buy_custom_bg_slot():
     if current_slots >= 3:
         return jsonify({"error": "커스텀 배경 슬롯은 최대 3개입니다"}), 400
 
-    CUSTOM_PRICES = [10_000_000_000, 100_000_000_000, 1_000_000_000_000]
+    CUSTOM_PRICES = [1_000_000_000, 10_000_000_000, 100_000_000_000]
     price = CUSTOM_PRICES[current_slots]
 
     if user.cash < price:
