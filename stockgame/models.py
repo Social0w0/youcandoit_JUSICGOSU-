@@ -390,160 +390,6 @@ SHOP_TITLE_SEEDS = [
         'color': 'anim:galaxy',      # 🌌 최고 등급 - galaxy
         'sort_order': 8,
     },
-    {
-        'id': 2,
-        'name': '열혈 트레이더',
-        'emoji': '🔥',
-        'description': '시장을 불태우는 자',
-        'price': 1500_0000,
-        'color': '#ef4444',
-        'sort_order': 2,
-    },
-    {
-        'id': 12,
-        'name': '존버의 화석',
-        'emoji': '🗿',
-        'description': '우리는, 결국 승리한다.',
-        'price': 3000_0000,
-        'color': "#746060",
-        'sort_order': 2,
-    },
-    {
-        'id': 13,
-        'name': '상폐 컬렉터',
-        'emoji': '💀',
-        'description': '우리는, 결국 승리한다.',
-        'price': 4000_0000,
-        'color': "#bdbdbd",
-        'sort_order': 2,
-    },
-    {
-        'id': 14,
-        'name': '광대',
-        'emoji': '🤡',
-        'description': '아저씨는 왜 집이 없어요??',
-        'price': 5000_0000,
-        'color': "anim:rainbow",
-        'sort_order': 3,
-    },
-    {
-        'id': 3,
-        'name': '다크호스',
-        'emoji': '🐴',
-        'description': '아무도 예측 못할 다크호스',
-        'price': 1_5000_0000,
-        'color': "#38226d83",
-        'sort_order': 3,
-    },
-    {
-        'id': 4,
-        'name': '월스트리트의 해커',
-        'emoji': '💻',
-        'description': '너도 할 수 있다! 주가조작!',
-        'price': 3_0000_0000,
-        'color': '#06b6d4',
-        'sort_order': 4,
-    },
-    {
-        'id': 5,
-        'name': '시장의 설계자',
-        'emoji': '📐',
-        'description': '수학으로 부를 설계하는 자',
-        'price': 5_0000_0000,
-        'color': '#22c55e',
-        'sort_order': 5,
-    },
-    {
-        'id': 6,
-        'name': '개미들의 우상',
-        'emoji': '🐜',
-        'description': '오오.. 개미들의 왕이시여!',
-        'price': 100_0000_0000,
-        'color': "#a05757",
-        'sort_order': 5,
-    },
-    {
-        'id': 7,
-        'name': '하락장의 생존자',
-        'emoji': '😮‍💨',
-        'description': '그날은.. 정말 끔찍했어요!',
-        'price': 10_0000_0000,
-        'color': "#2e76a2",
-        'sort_order': 5,
-    },
-    {
-        'id': 8,
-        'name': '쫒겨난 CEO',
-        'emoji': '🧿',
-        'description': '하지만 주식은 올랐죠?',
-        'price': 10_0000_0000,
-        'color': "#97fff1",
-        'sort_order': 5,
-    },
-    {
-        'id': 9,
-        'name': '투자 고수',
-        'emoji': '🥽',
-        'description': '이 정도 경지라면, 두려울 게 없겠네요!',
-        'price': 1000_0000_0000,
-        'color': "#ffe990",
-        'sort_order': 7,
-    },
-    {
-        'id': 11,
-        'name': '물린 자의 품격',
-        'emoji': '😎',
-        'description': '나 지금... 떨고 있니?',
-        'price': 70_0000_0000,
-        'color': "#9fff31",
-        'sort_order': 6,
-    },
-    {
-        'id': 15,
-        'name': '보이지 않는 손',
-        'emoji': '✋',
-        'description': '주가를 주무르는 거대한 권력!',
-        'price': 1_0000_0000_0000,
-        'color': "anim:glitch",
-        'sort_order': 7,
-    },
-    {
-        'id': 16,
-        'name': '불사조',
-        'emoji': '🐦‍🔥',
-        'description': '뭣 4조가 불에 탄다고??!',
-        'price': 4_0000_0000_0000,
-        'color': "anim:fire",
-        'sort_order': 7,
-    },
-    {
-        'id': 17,
-        'name': '초신성',
-        'emoji': '🌠',
-        'description': '어느새 여기까지.',
-        'price': 100_0000_0000_0000,
-        'color':"anim:galaxy",
-        'sort_order': 7,
-    },
-    {
-        'id': 18,
-        'name': '글로볼',
-        'emoji': '🌏',
-        'description': '주식을 세계로 !!',
-        'price': 1000_0000_0000_0000,
-        'color': "#2623fa",
-        'sort_order': 7,
-    },
-    {
-        'id': 10,
-        'name': '주식의 신',
-        'emoji': '🎖️',
-        'description': '정점',
-        'price': 1_0000_0000_0000_0000,
-        'color': "anim:god",
-        'sort_order': 8,
-    },
-
 ]
 
 
@@ -553,7 +399,14 @@ def seed_shop_titles():
     - 이미 있는 항목은 color / name / emoji / description / price 를 항상 최신값으로 업데이트
     """
     existing = {t.id: t for t in ShopTitle.query.all()}
+    seen_ids = set()
     for data in SHOP_TITLE_SEEDS:
+        if data['id'] in seen_ids:
+            # SHOP_TITLE_SEEDS 안에 같은 id가 중복 정의된 경우 (복붙 실수 등)
+            # 여기서 걸러서 같은 PK를 두 번 insert하는 사고를 막는다.
+            print(f"[SEED WARNING] shop_title id={data['id']} 가 SHOP_TITLE_SEEDS에 중복 정의되어 있습니다. 뒤에 나온 항목은 무시합니다.")
+            continue
+        seen_ids.add(data['id'])
         if data['id'] not in existing:
             db.session.add(ShopTitle(**data))
         else:
